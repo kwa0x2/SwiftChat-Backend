@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  main_postgres:
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_DB=nettasec_global_db
+      - POSTGRES_USER=nettasec
+      - POSTGRES_PASSWORD=nettaseclocal
+    ports:
+      - "5437:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    
+
+volumes:
+  db_data:
