@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/kwa0x2/realtime-chat-backend/config"
 	"github.com/kwa0x2/realtime-chat-backend/controller"
@@ -12,8 +13,14 @@ import (
 func main() {
 	config.LoadEnv()
 	router := gin.New()
-	config.Connection()
-
+	config.PostgreConnection()
+	store := config.RedisConnection()
+	if store == nil {
+		panic("Redis bağlantısı başarısız")
+	}
+	
+	router.Use(sessions.Sessions("mysession", store))
+	
 	userRepository := &repository.UserRepository{
 		DB: config.DB,
 	}
@@ -39,8 +46,21 @@ func main() {
 	}
 
 
+	chatRepository := &repository.ChatRepository{
+		DB: config.DB,
+	}
+
+	chatService := &service.ChatService{
+		ChatRepository: chatRepository,
+	}
+
+	chatController := &controller.ChatController{
+		ChatService: chatService,
+	}
+
 	routes.UserRoute(router, userController)
 	routes.AuthRoute(router, authController)
+	routes.ChatRoute(router, chatController)
 
 	router.Run(":9000")
 }

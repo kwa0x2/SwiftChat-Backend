@@ -10,7 +10,7 @@ import (
 
 var DB *gorm.DB
 
-func Connection(){
+func PostgreConnection(){
 	db, err := gorm.Open(postgres.Open("postgres://nettasec:nettaseclocal@localhost:5437/nettasec_global_db?sslmode=disable"), &gorm.Config{})
 
 

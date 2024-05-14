@@ -1,7 +1,7 @@
 version: "3.8"
 
 services:
-  main_postgres:
+  database:
     image: postgres:latest
     restart: always
     environment:
@@ -11,8 +11,23 @@ services:
     ports:
       - "5437:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
-    
+      - db:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis:/data
+    environment:
+      - REDIS-PASSWORD=nettaseclocal
+      - REDIS_PORT=6379
+      - REDIS_DATABASES=16
+
 
 volumes:
-  db_data:
+  db:
+  redis:

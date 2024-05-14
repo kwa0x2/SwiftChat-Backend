@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/google/uuid"
 
 	"net/http"
@@ -58,7 +59,10 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 	}
 
 	if !ctrl.AuthService.IsIdUnique(userData["id"].(string)) {
-		ctx.JSON(http.StatusAccepted, helpers.NewSuccessResponse(http.StatusAccepted, "Accepted", userData["id"].(string)))
+		sessions := sessions.Default(ctx)
+		sessionToken, _ := helpers.GenerateSecureRandomToken(32)
+		sessions.Set("session_token", sessionToken)
+		ctx.JSON(http.StatusAccepted, helpers.NewLoginResponse(http.StatusAccepted, "Accepted", "Login successfully", sessionToken))
 		return
 	}
 
