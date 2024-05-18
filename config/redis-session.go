@@ -8,7 +8,7 @@ import (
 )
 
 func RedisSession() redis.Store {
-	store, err := redis.NewStore(10, "tcp", "localhost:6379", "", []byte(os.Getenv("SESSION_SECRET_KEY")))
+	store, err := redis.NewStore(10, "tcp", os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PASSWORD"), []byte(os.Getenv("SESSION_SECRET_KEY")))
 	if err != nil {
 		panic(err)
 	}

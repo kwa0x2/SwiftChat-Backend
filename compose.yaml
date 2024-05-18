@@ -14,19 +14,14 @@ services:
       - db:/var/lib/postgresql/data
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
 
-
   redis:
     image: redis:latest
     restart: always
     ports:
       - "6379:6379"
+    command: ["redis-server", "--requirepass", "nettaseclocal"]
     volumes:
       - redis:/data
-    environment:
-      - REDIS-PASSWORD=nettaseclocal
-      - REDIS_PORT=6379
-      - REDIS_DATABASES=16
-
 
 volumes:
   db:

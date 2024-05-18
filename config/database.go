@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -11,7 +12,8 @@ import (
 var DB *gorm.DB
 
 func PostgreConnection(){
-	db, err := gorm.Open(postgres.Open("postgres://nettasec:nettaseclocal@localhost:5437/nettasec_global_db?sslmode=disable"), &gorm.Config{})
+	dsn := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", os.Getenv("POSTGRE_USER"), os.Getenv("POSTGRE_PASSWORD"), os.Getenv("POSTGRE_HOST"), os.Getenv("POSTGRE_DB"))
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 
 	if err != nil{
