@@ -26,7 +26,8 @@ func UserRoute(router *gin.Engine, userController *controller.UserController) {
 func ChatRoute(router *gin.Engine, chatController *controller.ChatController) {
 	chatRoutes := router.Group("/api/v1/chat")
 	{
-		chatRoutes.GET("test", chatController.SessionTest)
+		chatRoutes.GET("login", chatController.Login)
+		chatRoutes.GET("auth",middlewares.SessionMiddleware() , chatController.Auth)
 	}
 }
 

@@ -14,46 +14,20 @@ func main() {
 	config.LoadEnv()
 	router := gin.New()
 	config.PostgreConnection()
-	store := config.RedisConnection()
-	if store == nil {
-		panic("Redis bağlantısı başarısız")
-	}
-	
-	router.Use(sessions.Sessions("mysession", store))
-	
-	userRepository := &repository.UserRepository{
-		DB: config.DB,
-	}
 
-	userService := &service.UserService{
-		UserRepository: userRepository,
-	}
+	store := config.RedisSession()
+	router.Use(sessions.Sessions("connect.sid", store))
 
-	userController := &controller.UserController{
-		UserService: userService,
-	}
+	userRepository := &repository.UserRepository{DB: config.DB}
+	userService := &service.UserService{UserRepository: userRepository}
+	userController := &controller.UserController{UserService: userService}
 
-	authRepository := &repository.AuthRepository{
-		DB: config.DB,
-	}
+	authRepository := &repository.AuthRepository{DB: config.DB}
+	authService := &service.AuthService{AuthRepository: authRepository}
+	authController := &controller.AuthController{AuthService: authService}
 
-	authService := &service.AuthService{
-		AuthRepository: authRepository,
-	}
-
-	authController := &controller.AuthController{
-		AuthService: authService,
-	}
-
-
-	chatRepository := &repository.ChatRepository{
-		DB: config.DB,
-	}
-
-	chatService := &service.ChatService{
-		ChatRepository: chatRepository,
-	}
-
+	chatRepository := &repository.ChatRepository{DB: config.DB}
+	chatService := &service.ChatService{ChatRepository: chatRepository}
 	chatController := &controller.ChatController{
 		ChatService: chatService,
 	}

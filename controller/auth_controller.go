@@ -3,11 +3,14 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-contrib/sessions"
 	"github.com/google/uuid"
 
 	"net/http"
+
 
 	"github.com/gin-gonic/gin"
 	"github.com/kwa0x2/realtime-chat-backend/config"
@@ -58,15 +61,24 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 		return
 	}
 
+	// id unique degilse
 	if !ctrl.AuthService.IsIdUnique(userData["id"].(string)) {
-		sessions := sessions.Default(ctx)
-		sessionToken, _ := helpers.GenerateSecureRandomToken(32)
-		sessions.Set("session_token", sessionToken)
-		ctx.JSON(http.StatusAccepted, helpers.NewLoginResponse(http.StatusAccepted, "Accepted", "Login successfully", sessionToken))
+		session := sessions.Default(ctx)
+		session.Set("user_id", userData["id"].(string))
+		session.Set("user_authority_id", 2)
+		session.Save()
+		ctx.JSON(http.StatusAccepted, helpers.NewLoginResponse(http.StatusAccepted, "Accepted", "Login successfully", ""))
 		return
 	}
 
-	tokenString, err := helpers.GenerateToken(userData["id"].(string), userData["email"].(string), userData["picture"].(string))
+	jwtClaims := jwt.MapClaims{
+		"id":    userData["id"].(string),
+		"email": userData["email"].(string),
+		"photo": userData["picture"].(string),
+		"exp":   time.Now().Add(time.Hour * 2).Unix(),
+	}
+
+	tokenString, err := helpers.GenerateToken(jwtClaims)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, helpers.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "JWT Token Failed"))
 		return

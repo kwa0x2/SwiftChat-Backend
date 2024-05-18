@@ -3,22 +3,16 @@ package helpers
 import (
 	"errors"
 	"os"
-	"time"
 
 	"github.com/dgrijalva/jwt-go"
 )
 
 var secretKey []byte
 
-func GenerateToken(id string, email string, photo string) (string, error) {
+func GenerateToken(jwtClaims jwt.MapClaims) (string, error) {
 	secretKey = []byte(os.Getenv("JWT_SECRET_KEY"))
 
-	claims := jwt.MapClaims{
-		"id":    id,
-		"email": email,
-		"photo": photo,
-		"exp":   time.Now().Add(time.Hour * 2).Unix(),
-	}
+	claims := jwtClaims
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
@@ -57,10 +51,12 @@ func GetClaims(tokenString string) (map[string]interface{}, error) {
 		return secretKey, nil
 	})
 
-	if parseErr != nil{
+	if parseErr != nil {
 		return nil, parseErr
 	}
 
-
 	return claims, nil
 }
+
+
+

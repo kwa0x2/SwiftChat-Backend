@@ -2,6 +2,9 @@ package middlewares
 
 import (
 	"net/http"
+	"time"
+
+	"github.com/gin-contrib/sessions"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kwa0x2/realtime-chat-backend/helpers"
@@ -22,7 +25,20 @@ func JwtMiddleware() gin.HandlerFunc{
 			ctx.Abort()
 			return
 		}
+	}
+}
 
-		ctx.Next()
+func SessionMiddleware() gin.HandlerFunc{
+	return func(ctx *gin.Context) {
+		session:=sessions.Default(ctx)
+		sessionUserID:=session.Get("user_id")
+		if sessionUserID == nil {
+			ctx.JSON(http.StatusUnauthorized, helpers.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization failed"))
+			ctx.Abort()
+			return
+		}
+		session.Set("Expires", time.Now().Add(24*time.Hour))
+		session.Save()
+		return
 	}
 }
