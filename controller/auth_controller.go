@@ -67,7 +67,7 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 		session.Set("user_id", userData["id"].(string))
 		session.Set("user_authority_id", 2)
 		session.Save()
-		ctx.JSON(http.StatusAccepted, helpers.NewLoginResponse(http.StatusAccepted, "Accepted", "Login successfully", ""))
+		ctx.JSON(http.StatusAccepted, helpers.NewLoginResponse(http.StatusAccepted, "Accepted", "Login successfully"))
 		return
 	}
 
@@ -84,5 +84,5 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, helpers.NewLoginResponse(http.StatusOK, "Continue", "Login successfully", tokenString))
+	ctx.JSON(http.StatusOK, helpers.NewSignUpResponse(http.StatusOK, "Continue", "Login successfully", tokenString))
 }

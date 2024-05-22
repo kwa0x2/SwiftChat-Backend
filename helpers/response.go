@@ -35,9 +35,19 @@ type loginResponse struct {
 	Code    int    `json:"code"`
 	Status  string `json:"status"`
 	Message string `json:"message"`
+}
+
+func NewLoginResponse(code int, status string, message string) loginResponse {
+	return loginResponse{Code: code, Status: status, Message: message}
+}
+
+type signUpResponse struct {
+	Code    int    `json:"code"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
 	Token   string `json:"token"`
 }
 
-func NewLoginResponse(code int, status string, message string, token string) loginResponse {
-	return loginResponse{Code: code, Status: status, Message: message, Token: token}
+func NewSignUpResponse(code int, status string, message string, token string) signUpResponse {
+	return signUpResponse{Code: code, Status: status, Message: message, Token: token}
 }
