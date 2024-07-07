@@ -9,3 +9,7 @@ type AuthService struct {
 func (s *AuthService) IsIdUnique(id string) bool {
 	return s.AuthRepository.IsIdUnique(id)
 }
+
+func (s *AuthService) GetUserName(id string) string {
+	return s.AuthRepository.GetUserName(id)
+}

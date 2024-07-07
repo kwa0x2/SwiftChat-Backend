@@ -31,7 +31,7 @@ func JwtMiddleware() gin.HandlerFunc{
 func SessionMiddleware() gin.HandlerFunc{
 	return func(ctx *gin.Context) {
 		session:=sessions.Default(ctx)
-		sessionUserID:=session.Get("user_id")
+		sessionUserID:=session.Get("id")
 		if sessionUserID == nil {
 			ctx.JSON(http.StatusUnauthorized, helpers.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization failed"))
 			ctx.Abort()

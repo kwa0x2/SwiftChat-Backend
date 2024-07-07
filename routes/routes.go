@@ -9,25 +9,20 @@ import (
 func AuthRoute(router *gin.Engine, authController *controller.AuthController) {
 	authRoutes := router.Group("/api/v1/auth")
 	{
-		authRoutes.GET("signup",authController.GoogleLogin)
+		authRoutes.GET("login",authController.GoogleLogin)
 		authRoutes.GET("callback", authController.GoogleCallback)
+		authRoutes.GET("",middlewares.SessionMiddleware(), authController.CheckAuth)
+		authRoutes.POST("logout", authController.Logout)
 	}
 	
 }
 
 func UserRoute(router *gin.Engine, userController *controller.UserController) {
-	userRoutes := router.Group("/api/v1/user")
+	userRoutes := router.Group("/api/v1/auth")
 	userRoutes.Use(middlewares.JwtMiddleware())
 	{
-		userRoutes.POST("", userController.InsertUser)
+		userRoutes.POST("signup", userController.InsertUser)
 	}
 }
 
-func ChatRoute(router *gin.Engine, chatController *controller.ChatController) {
-	chatRoutes := router.Group("/api/v1/chat")
-	{
-		chatRoutes.GET("login", chatController.Login)
-		chatRoutes.GET("auth",middlewares.SessionMiddleware() , chatController.Auth)
-	}
-}
 

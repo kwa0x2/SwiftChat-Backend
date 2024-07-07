@@ -1,9 +1,10 @@
 package controller
 
 import (
-
+	"fmt"
 	"net/http"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/kwa0x2/realtime-chat-backend/helpers"
 	"github.com/kwa0x2/realtime-chat-backend/models"
@@ -34,20 +35,32 @@ func (ctrl *UserController) InsertUser(ctx *gin.Context) {
 
 	user := models.User{
 		UserID:    claims["id"].(string),
-		UserEmail: claims["email"].(string),
+		UserEmail: claims["user_email"].(string),
 		UserName:  insertUser.Username,
-		UserPhoto: claims["photo"].(string),
+		UserPhoto: claims["user_photo"].(string),
 	}
+
+	session := sessions.Default(ctx)
+	session.Set("id", claims["id"].(string))
+	session.Set("name", claims["user_name"].(string))
+	session.Set("mail", claims["user_email"].(string))
+	session.Set("photo", claims["user_photo"].(string))
+	session.Set("role", "user")
+	session.Save()
+
+	fmt.Println(session.ID())
 
 	if !ctrl.UserService.IsUsernameUnique(insertUser.Username) {
 		ctx.JSON(http.StatusConflict, helpers.NewErrorResponse(http.StatusConflict, "Conflict", "Username must be unique"))
 		return
 	}
 
-	if err := ctrl.UserService.InsertUser(&user); err != nil {
+	userdata,err := ctrl.UserService.InsertUser(&user)
+
+	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, helpers.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, helpers.NewSuccessResponse(http.StatusOK, "OK", "Succesfully inserted"))
+	ctx.JSON(http.StatusCreated, userdata)
 }

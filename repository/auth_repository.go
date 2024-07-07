@@ -12,3 +12,9 @@ func (r *AuthRepository) IsIdUnique(id string) bool {
 	r.DB.Table("USER").Where("user_id = ?", id).Count(&count)
 	return count == 0
 }
+
+func (r *AuthRepository) GetUserName(id string) string {
+	var username string
+	r.DB.Table("USER").Select("user_name").Where("user_id = ?", id).Scan(&username)
+	return username
+}

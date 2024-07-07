@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -10,7 +11,6 @@ import (
 	"github.com/google/uuid"
 
 	"net/http"
-
 
 	"github.com/gin-gonic/gin"
 	"github.com/kwa0x2/realtime-chat-backend/config"
@@ -63,19 +63,28 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 
 	// id unique degilse
 	if !ctrl.AuthService.IsIdUnique(userData["id"].(string)) {
+
+		username := ctrl.AuthService.GetUserName(userData["id"].(string))
+
 		session := sessions.Default(ctx)
-		session.Set("user_id", userData["id"].(string))
-		session.Set("user_authority_id", 2)
+		session.Set("id", userData["id"].(string))
+		session.Set("name", username)
+		session.Set("mail", userData["email"].(string))
+		session.Set("photo", userData["picture"].(string))
+		session.Set("role", "user")
 		session.Save()
-		ctx.JSON(http.StatusAccepted, helpers.NewLoginResponse(http.StatusAccepted, "Accepted", "Login successfully"))
+		fmt.Println(session.ID())
+
+		ctx.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/login")
 		return
 	}
 
 	jwtClaims := jwt.MapClaims{
-		"id":    userData["id"].(string),
-		"email": userData["email"].(string),
-		"photo": userData["picture"].(string),
-		"exp":   time.Now().Add(time.Hour * 2).Unix(),
+		"id":         userData["id"].(string),
+		"user_email": userData["email"].(string),
+		"user_photo": userData["picture"].(string),
+		"user_name":  userData["name"].(string),
+		"exp":        time.Now().Add(time.Hour * 2).Unix(),
 	}
 
 	tokenString, err := helpers.GenerateToken(jwtClaims)
@@ -84,5 +93,27 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, helpers.NewSignUpResponse(http.StatusOK, "Continue", "Login successfully", tokenString))
+	ctx.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/createname?token="+tokenString)
+}
+
+func (ctrl *AuthController) CheckAuth(ctx *gin.Context) {
+	session := sessions.Default(ctx)
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"id":    session.Get("id"),
+		"name":  session.Get("name"),
+		"mail":  session.Get("mail"),
+		"photo": session.Get("photo"),
+		"role":  session.Get("role"),
+	})
+}
+
+func (ctrl *AuthController) Logout(ctx *gin.Context) {
+	session := sessions.Default(ctx)
+
+	session.Clear()
+	session.Options(sessions.Options{MaxAge: -1})
+	session.Save()
+	
+	ctx.SetCookie("connect.sid","",-1,"/","localhost",true,true)
 }

@@ -13,10 +13,11 @@ func (s *UserService) IsUsernameUnique(username string) bool {
 	return s.UserRepository.IsUsernameUnique(username)
 }
 
+func (s *UserService) IsEmailUnique(email string) bool {
+	return s.UserRepository.IsEmailUnique(email)
+}
 
 
-
-
-func (s *UserService) InsertUser(user *models.User) error{
+func (s *UserService) InsertUser(user *models.User) (*models.User, error){
 	return s.UserRepository.InsertUser(user)
 }

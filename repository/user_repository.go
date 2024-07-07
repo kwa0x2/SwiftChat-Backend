@@ -15,13 +15,18 @@ func (r *UserRepository) IsUsernameUnique(username string) bool {
 	return count == 0
 }
 
-
-
-func (r *UserRepository) InsertUser(user *models.User) error {
-    if err := r.DB.Table("USER").Create(&user).Error; err != nil {
-        return err
-    }
-    return nil
+func (r *UserRepository) IsEmailUnique(email string) bool {
+	var count int64
+	r.DB.Table("USER").Where("user_email = ?", email).Count(&count)
+	return count == 0
 }
+
+func (r *UserRepository) InsertUser(user *models.User) (*models.User, error) {
+    if err := r.DB.Table("USER").Create(&user).Error; err != nil {
+        return nil, err
+    }
+    return user, nil
+}
+
 
 
