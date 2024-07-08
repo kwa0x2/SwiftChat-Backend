@@ -1,21 +1,19 @@
 package main
 
-import (
-	"log"
-	"net/http"
+import (	"log"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/kwa0x2/realtime-chat-backend/config"
 	"github.com/kwa0x2/realtime-chat-backend/controller"
-	"github.com/kwa0x2/realtime-chat-backend/middlewares"
 	"github.com/kwa0x2/realtime-chat-backend/repository"
 	"github.com/kwa0x2/realtime-chat-backend/routes"
 	"github.com/kwa0x2/realtime-chat-backend/service"
-	"github.com/zishang520/engine.io/utils"
 	"github.com/zishang520/socket.io/socket"
 )
+
+var userSockets = make(map[string]string)
 
 func main() {
 	config.LoadEnv()
@@ -25,21 +23,46 @@ func main() {
 	store := config.RedisSession()
 	router.Use(sessions.Sessions("connect.sid", store))
 
-	io.Of("/chat",nil).On("connection", func(clients ...any) {
-		socket := clients[0].(*socket.Socket)
+	// io.Of("/chat", nil).On("connection", func(clients ...any) {
+	// 	socketio := clients[0].(*socket.Socket)
+	// 	ctx := socketio.Request().Context()
 
-		utils.Log().Info(`socket %s connected`, socket.Id())
+	// 	utils.Log().Info(`socket connected %s user id %s`, socketio.Id(), ctx.Value("id").(string))
 
-		socket.Emit("foo", "bar")
+	// 	userSockets[ctx.Value("id").(string)] = string(socketio.Id())
 
-		socket.On("disconnect", func(reason ...any) {
-			utils.Log().Info(`socket %s disconnected due to %s`, socket.Id(), reason[0])
-		})
-	})
+	// 	socketio.On("disconnect", func(reason ...any) {
+	// 		utils.Log().Info(`socket %s disconnected due to %s`, socketio.Id(), reason[0])
+	// 	})
 
-	router.GET("socket.io/*any", middlewares.SessionMiddleware(), gin.WrapH(io.ServeHandler(nil)))
-	router.POST("socket.io/*any", middlewares.SessionMiddleware(), gin.WrapH(io.ServeHandler(nil)))
-	router.StaticFS("/public", http.Dir("./asset"))
+	// 	socketio.On("sendMessage", func(args ...interface{}) {
+
+	// 		msg, ok := args[0].(map[string]interface{})
+	// 		if !ok {
+	// 			utils.Log().Error("Failed to parse sendMessage event data")
+	// 			return
+	// 		}
+
+	// 		destionation_id := msg["DestionationUserId"].(string)
+	// 		message := msg["Message"].(string)
+	// 		fmt.Println(userSockets)
+
+	// 		// database insert
+
+
+
+	// 		utils.Log().Info("Received message from %s : %s", ctx.Value("id").(string), message)
+
+	// 		io.Of("/chat", nil).To(socket.Room(userSockets[destionation_id])).Emit("chat", map[string]interface{}{
+	// 			"sender_id": ctx.Value("id").(string),
+	// 			"message":   message,
+	// 		})
+	// 	})
+	// })
+
+	// router.GET("socket.io/*any", middlewares.SessionMiddleware(), gin.WrapH(io.ServeHandler(nil)))
+	// router.POST("socket.io/*any", middlewares.SessionMiddleware(), gin.WrapH(io.ServeHandler(nil)))
+	// router.StaticFS("/public", http.Dir("./asset"))
 
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},
@@ -59,6 +82,7 @@ func main() {
 
 	routes.UserRoute(router, userController)
 	routes.AuthRoute(router, authController)
+	routes.SetupSocketIO(router, io)
 
 	if err := router.Run(":9000"); err != nil {
 		log.Fatal("failed run app: ", err)
