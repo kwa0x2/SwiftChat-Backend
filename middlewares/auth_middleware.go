@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -29,7 +30,7 @@ func JwtMiddleware() gin.HandlerFunc{
 }
 
 func SessionMiddleware() gin.HandlerFunc{
-	return func(ctx *gin.Context) {
+	return func(ctx *gin.Context, ) {
 		session:=sessions.Default(ctx)
 		sessionUserID:=session.Get("id")
 		if sessionUserID == nil {
@@ -38,6 +39,9 @@ func SessionMiddleware() gin.HandlerFunc{
 			return
 		}
 		session.Set("Expires", time.Now().Add(24*time.Hour))
+
+		socketCtx := context.WithValue(ctx.Request.Context(), "id", sessionUserID.(string))
+		ctx.Request = ctx.Request.WithContext(socketCtx)
 		session.Save()
 		return
 	}

@@ -4,7 +4,7 @@ BEGIN
         ('pending', 'accepted', 'rejected');
 
     CREATE TYPE public.read_status AS ENUM
-        ('unread', 'read', 'delivered', 'failed');
+        ('unread', 'readed');
 
     CREATE TABLE IF NOT EXISTS public."ROLE"
     (
@@ -33,13 +33,13 @@ BEGIN
     CREATE TABLE IF NOT EXISTS public."MESSAGE"
     (
         message_id bigint NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 9223372036854775807 CACHE 1 ),
-        message_content character varying COLLATE pg_catalog."default" NOT NULL,
+        message_content character varying(10000) COLLATE pg_catalog."default" NOT NULL,
         "createdAt" timestamp without time zone NOT NULL,
         "updatedAt" timestamp without time zone NOT NULL,
         "deletedAt" timestamp without time zone,
-        message_read_status read_status NOT NULL DEFAULT 'unread'::read_status,
         message_sender_id character varying COLLATE pg_catalog."default" NOT NULL,
         message_receiver_id character varying COLLATE pg_catalog."default" NOT NULL,
+        message_read_status read_status NOT NULL DEFAULT 'unread'::read_status,
         CONSTRAINT "MESSAGE_pkey" PRIMARY KEY (message_id),
         CONSTRAINT receiver_id FOREIGN KEY (message_receiver_id)
             REFERENCES public."USER" (user_id) MATCH SIMPLE
@@ -74,6 +74,12 @@ BEGIN
     ('high'),
     ('medium'),
     ('standard');
+
+    COMMENT ON CONSTRAINT receiver_id ON public."MESSAGE"
+        IS 'alıcı kişinin id değeri';
+
+    COMMENT ON CONSTRAINT sender_id ON public."MESSAGE"
+        IS 'mesajı yollayan kişinin id değeri';
 
 EXCEPTION
     WHEN OTHERS THEN
