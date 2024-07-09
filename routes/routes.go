@@ -6,6 +6,7 @@ import (
 	"github.com/kwa0x2/realtime-chat-backend/controller"
 	"github.com/kwa0x2/realtime-chat-backend/gateway"
 	"github.com/kwa0x2/realtime-chat-backend/middlewares"
+	"github.com/kwa0x2/realtime-chat-backend/service"
 	"github.com/zishang520/socket.io/socket"
 )
 
@@ -28,9 +29,9 @@ func UserRoute(router *gin.Engine, userController *controller.UserController) {
 	}
 }
 
-func SetupSocketIO(router *gin.Engine, io *socket.Server) {
+func SetupSocketIO(router *gin.Engine, io *socket.Server, messageService *service.MessageService) {
 	socketGateway := gateway.NewSocketGateway(io)
-	socketAdapter := adapter.NewSocketAdapter(socketGateway)
+	socketAdapter := adapter.NewSocketAdapter(socketGateway, messageService)
 
 	socketAdapter.HandleConnection()
 
