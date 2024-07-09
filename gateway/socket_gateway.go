@@ -28,3 +28,4 @@ func (g *socketGateway) OnConnection(callback func(socketio *socket.Socket)) {
 func (g *socketGateway) Emit(event, room string, data interface{}){
 	g.server.Of("/chat", nil).To(socket.Room(room)).Emit(event,data)
 }
+
