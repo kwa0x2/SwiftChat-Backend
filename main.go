@@ -41,11 +41,17 @@ func main() {
 	
 	messageRepository := &repository.MessageRepository{DB: config.DB}
 	messageService := &service.MessageService{MessageRepository: messageRepository}
+	messageController := &controller.MessageController{MessageService: messageService}
 
+	friendshipRepository := &repository.FriendshipRepository{DB: config.DB}
+	friendshipService := &service.FriendshipService{FriendshipRepository: friendshipRepository}
+	friendshipController := &controller.FriendshipController{FriendshipService: friendshipService, UserService: userService}
 
 	routes.UserRoute(router, userController)
 	routes.AuthRoute(router, authController)
-	routes.SetupSocketIO(router, io, messageService)
+	routes.MessageRoute(router, messageController)
+	routes.FriendshipRoute(router, friendshipController)
+	routes.SetupSocketIO(router, io, messageService,userService,friendshipService)
 
 	if err := router.Run(":9000"); err != nil {
 		log.Fatal("failed run app: ", err)
