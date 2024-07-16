@@ -18,6 +18,14 @@ func (s *UserService) IsEmailUnique(email string) bool {
 }
 
 
-func (s *UserService) InsertUser(user *models.User) (*models.User, error){
-	return s.UserRepository.InsertUser(user)
+func (s *UserService) Insert(user *models.User) (*models.User, error){
+	return s.UserRepository.Insert(user)
+}
+
+func (s *UserService) GetAll() ([]*models.User, error) {
+	return s.UserRepository.GetAll()
+}
+
+func (s *UserService) GetByEmail(email string) (*models.User, error) {
+	return s.UserRepository.GetByEmail(email)
 }

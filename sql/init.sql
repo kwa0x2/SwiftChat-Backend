@@ -1,7 +1,7 @@
 DO $$
 BEGIN
     CREATE TYPE public.friendship_status AS ENUM
-        ('pending', 'accepted', 'rejected');
+        ('pending', 'accepted', 'rejected', 'email_sent', 'blocked');
 
     CREATE TYPE public.read_status AS ENUM
         ('unread', 'readed');
@@ -55,15 +55,15 @@ BEGIN
 
     CREATE TABLE IF NOT EXISTS public."FRIENDSHIP"
     (
-        user_id character varying COLLATE pg_catalog."default" NOT NULL,
-        friend_id character varying COLLATE pg_catalog."default" NOT NULL,
+        sender_id character varying COLLATE pg_catalog."default" NOT NULL,
+        receiver_id character varying COLLATE pg_catalog."default" NOT NULL,
         friendship_status friendship_status NOT NULL DEFAULT 'pending'::friendship_status,
-        CONSTRAINT "FRIENDSHIP_pkey" PRIMARY KEY (user_id, friend_id),
-        CONSTRAINT friend_id FOREIGN KEY (friend_id)
+        CONSTRAINT "FRIENDSHIP_pkey" PRIMARY KEY (sender_id, receiver_id),
+        CONSTRAINT receiver_id FOREIGN KEY (receiver_id)
             REFERENCES public."USER" (user_id) MATCH SIMPLE
             ON UPDATE NO ACTION
             ON DELETE NO ACTION,
-        CONSTRAINT user_id FOREIGN KEY (user_id)
+        CONSTRAINT sender_id FOREIGN KEY (sender_id)
             REFERENCES public."USER" (user_id) MATCH SIMPLE
             ON UPDATE NO ACTION
             ON DELETE NO ACTION

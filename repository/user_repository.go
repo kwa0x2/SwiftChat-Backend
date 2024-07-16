@@ -1,6 +1,7 @@
 package repository
 
 import (
+
 	"github.com/kwa0x2/realtime-chat-backend/models"
 	"gorm.io/gorm"
 )
@@ -21,12 +22,26 @@ func (r *UserRepository) IsEmailUnique(email string) bool {
 	return count == 0
 }
 
-func (r *UserRepository) InsertUser(user *models.User) (*models.User, error) {
-    if err := r.DB.Table("USER").Create(&user).Error; err != nil {
-        return nil, err
-    }
-    return user, nil
+func (r *UserRepository) Insert(user *models.User) (*models.User, error) {
+	if err := r.DB.Table("USER").Create(&user).Error; err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
+func (r *UserRepository) GetAll() ([]*models.User, error) {
+	var users []*models.User
+	if err := r.DB.Table("USER").Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}
 
+func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
+    var user *models.User
+    if err := r.DB.Table("USER").Where("user_email = ?", email).First(&user).Error; err != nil {
+        return nil, err 
+    }
 
+    return user, nil
+}

@@ -55,7 +55,7 @@ func (ctrl *UserController) InsertUser(ctx *gin.Context) {
 		return
 	}
 
-	userdata,err := ctrl.UserService.InsertUser(&user)
+	userdata,err := ctrl.UserService.Insert(&user)
 
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, helpers.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
@@ -63,4 +63,24 @@ func (ctrl *UserController) InsertUser(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusCreated, userdata)
+}
+
+func (ctrl *UserController) GetAll(ctx *gin.Context) {
+	usersData, err := ctrl.UserService.GetAll()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, helpers.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, helpers.NewGetResponse(http.StatusOK, "OK", len(usersData), usersData))
+}
+
+func (ctrl *UserController) GetByEmail(ctx *gin.Context) {
+	usersData, err := ctrl.UserService.GetByEmail("asdasdsa@gmail.com")
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, helpers.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, helpers.NewGetResponse(http.StatusOK, "OK", 1, usersData))
 }

@@ -1,6 +1,7 @@
 package adapter
 
 import (
+
 	"github.com/kwa0x2/realtime-chat-backend/gateway"
 	"github.com/kwa0x2/realtime-chat-backend/models"
 	"github.com/kwa0x2/realtime-chat-backend/service"
@@ -9,13 +10,15 @@ import (
 )
 
 type SocketAdapter struct {
-	gateway        gateway.SocketGateway
-	userSockets    map[string]string
-	messageService *service.MessageService
+	gateway           gateway.SocketGateway
+	userSockets       map[string]string
+	messageService    *service.MessageService
+	userService       *service.UserService
+	friendshipService *service.FriendshipService
 }
 
-func NewSocketAdapter(gateway gateway.SocketGateway, messageService *service.MessageService) *SocketAdapter {
-	return &SocketAdapter{gateway: gateway, userSockets: make(map[string]string), messageService: messageService}
+func NewSocketAdapter(gateway gateway.SocketGateway, messageService *service.MessageService, userService *service.UserService, friendshipService *service.FriendshipService) *SocketAdapter {
+	return &SocketAdapter{gateway: gateway, userSockets: make(map[string]string), messageService: messageService, userService: userService, friendshipService: friendshipService}
 }
 
 func (adapter *SocketAdapter) HandleConnection() {
@@ -38,13 +41,13 @@ func (adapter *SocketAdapter) HandleConnection() {
 				return
 			}
 
-			var message models.Message
+			var messageObj models.Message
 
-			message.MessageContent = data["message"].(string)
-			message.MessageSenderID = connectedUserID
-			message.MessageReceiverID = data["receiver_id"].(string)
+			messageObj.MessageContent = data["message"].(string)
+			messageObj.MessageSenderID = connectedUserID
+			messageObj.MessageReceiverID = data["DestionationUserId"].(string)
 
-			addedMessageData, err := adapter.messageService.InsertMessage(&message)
+			addedMessageData, err := adapter.messageService.Insert(&messageObj)
 			if err != nil {
 				utils.Log().Error(`while addding message error`)
 				return
@@ -52,11 +55,61 @@ func (adapter *SocketAdapter) HandleConnection() {
 
 			utils.Log().Info("Added and sended message %+v\n", addedMessageData)
 
-			adapter.gateway.Emit("chat", adapter.userSockets[message.MessageReceiverID], map[string]interface{}{
-				"sender_id": message.MessageSenderID,
-				"message":   message.MessageContent,
+			// direkt eklenen veri donucek
+			adapter.gateway.Emit("chat", adapter.userSockets[messageObj.MessageReceiverID], map[string]interface{}{
+				"sender_id": messageObj.MessageSenderID,
+				"message":   messageObj.MessageContent,
 			})
 
 		})
+
+		// socketio.On("sendFriendship", func(args ...any) {
+		// 	data, ok := args[0].(map[string]interface{})
+		// 	if !ok {
+		// 		utils.Log().Error(`socket message type error %s user id %s`, socketio.Id(), connectedUserID)
+		// 		return
+		// 	}
+		// 	utils.Log().Printf(`socket message type error %s user id %s email %s`, socketio.Id(), connectedUserID, data["email"].(string))
+
+		// 	user, err := adapter.userService.GetByEmail(data["email"].(string))
+
+		// 	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// 		utils.Log().Printf("User with email %s not found", data["email"].(string))
+
+		// 		adapter.gateway.Emit("response", adapter.userSockets[connectedUserID], map[string]interface{}{
+		// 			"status":  "success",
+		// 			"message": "Friendship email sent successfully",
+		// 		})
+		// 		return
+		// 	}
+			
+		// 	if err != nil {
+		// 		utils.Log().Error(`while getting user error`)
+		// 		return
+		// 	}
+
+		// 	var friendshipObj models.Friendship
+
+		// 	friendshipObj.SenderId = connectedUserID
+		// 	friendshipObj.ReceiverId = user.UserID
+		// 	friendshipObj.FriendshipStatus = "pending"
+
+		// 	friendshipStatus, err := adapter.friendshipService.SendFriendRequest(&friendshipObj)
+		// 	if err != nil {
+		// 		utils.Log().Error(`while adding friendship error`)
+		// 		return
+		// 	}
+
+		// 	adapter.gateway.Emit("friendship", adapter.userSockets[friendshipObj.ReceiverId], map[string]interface{}{
+		// 		"income_friendship_sender_id": friendshipObj.SenderId,
+		// 		"income_friendship_status":    friendshipStatus,
+		// 	})
+
+		// 	adapter.gateway.Emit("response", adapter.userSockets[connectedUserID], map[string]interface{}{
+		// 		"status":  "success",
+		// 		"message": "Friendship request sent successfully",
+		// 	})
+
+		// })
 	})
 }

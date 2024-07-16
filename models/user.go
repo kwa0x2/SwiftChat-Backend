@@ -6,7 +6,7 @@ import (
 )
 
 type User struct {
-	UserID    string    `json:"user_id"`
+	UserID    string    `json:"user_id" gorm:"primaryKey"`
 	UserEmail string    `json:"user_email"`
 	UserName  string    `json:"user_name"`
 	UserPhoto string    `json:"user_photo"`
@@ -14,4 +14,9 @@ type User struct {
 	CreatedAt time.Time `json:"createdAt" gorm:"column:createdAt;not null"`
 	UpdatedAt time.Time `json:"updatedAt" gorm:"column:updatedAt"`
 	DeletedAt sql.NullTime `json:"deletedAt" gorm:"column:deletedAt"`
+	
+}
+
+func (User) TableName() string {
+	return "USER" 
 }
