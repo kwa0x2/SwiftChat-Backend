@@ -10,7 +10,7 @@ type MessageRepository struct {
 }
 
 func (r *MessageRepository) Insert(message *models.Message) (*models.Message, error) {
-	if err := r.DB.Table("MESSAGE").Create(&message).Error; err != nil {
+	if err := r.DB.Create(&message).Error; err != nil {
 		return nil, err
 	}
 	return message, nil
@@ -18,7 +18,7 @@ func (r *MessageRepository) Insert(message *models.Message) (*models.Message, er
 
 func (r *MessageRepository) GetPrivateConversation(senderId, receiverId string) ([]*models.Message, error) {
 	var messages []*models.Message
-	if err := r.DB.Table("MESSAGE").Where(
+	if err := r.DB.Where(
 		"(message_sender_id = ? AND message_receiver_id = ?) OR (message_receiver_id = ? AND message_sender_id = ?)",
 		senderId, receiverId, senderId, receiverId,
 	).Find(&messages).Error; err != nil {

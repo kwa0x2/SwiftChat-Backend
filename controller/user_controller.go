@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/kwa0x2/realtime-chat-backend/helpers"
+	"github.com/kwa0x2/realtime-chat-backend/utils"
 	"github.com/kwa0x2/realtime-chat-backend/models"
 	"github.com/kwa0x2/realtime-chat-backend/service"
 )
@@ -23,13 +23,13 @@ type InsertUser struct {
 func (ctrl *UserController) InsertUser(ctx *gin.Context) {
 	var insertUser InsertUser
 	if err := ctx.BindJSON(&insertUser); err != nil {
-		ctx.JSON(http.StatusBadRequest, helpers.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
 		return
 	}
 
-	claims, err := helpers.GetClaims(ctx.GetHeader("Authorization"))
+	claims, err := utils.GetClaims(ctx.GetHeader("Authorization"))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, helpers.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
 		return
 	}
 
@@ -51,14 +51,14 @@ func (ctrl *UserController) InsertUser(ctx *gin.Context) {
 	fmt.Println(session.ID())
 
 	if !ctrl.UserService.IsUsernameUnique(insertUser.Username) {
-		ctx.JSON(http.StatusConflict, helpers.NewErrorResponse(http.StatusConflict, "Conflict", "Username must be unique"))
+		ctx.JSON(http.StatusConflict, utils.NewErrorResponse(http.StatusConflict, "Conflict", "Username must be unique"))
 		return
 	}
 
 	userdata,err := ctrl.UserService.Insert(&user)
 
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, helpers.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
 		return
 	}
 
@@ -68,19 +68,19 @@ func (ctrl *UserController) InsertUser(ctx *gin.Context) {
 func (ctrl *UserController) GetAll(ctx *gin.Context) {
 	usersData, err := ctrl.UserService.GetAll()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, helpers.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, helpers.NewGetResponse(http.StatusOK, "OK", len(usersData), usersData))
+	ctx.JSON(http.StatusOK, utils.NewGetResponse(http.StatusOK, "OK", len(usersData), usersData))
 }
 
 func (ctrl *UserController) GetByEmail(ctx *gin.Context) {
 	usersData, err := ctrl.UserService.GetByEmail("asdasdsa@gmail.com")
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, helpers.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, helpers.NewGetResponse(http.StatusOK, "OK", 1, usersData))
+	ctx.JSON(http.StatusOK, utils.NewGetResponse(http.StatusOK, "OK", 1, usersData))
 }

@@ -1,4 +1,4 @@
-package helpers
+package utils
 
 type errorResponse struct {
 	Code   int    `json:"code"`

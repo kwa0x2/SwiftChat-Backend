@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"time"
 )
 
@@ -13,8 +12,7 @@ type User struct {
 	UserRole  string    `json:"user_role" gorm:"default:standard"`
 	CreatedAt time.Time `json:"createdAt" gorm:"column:createdAt;not null"`
 	UpdatedAt time.Time `json:"updatedAt" gorm:"column:updatedAt"`
-	DeletedAt sql.NullTime `json:"deletedAt" gorm:"column:deletedAt"`
-	
+	DeletedAt time.Time `json:"deletedAt" gorm:"column:deletedAt"`
 }
 
 func (User) TableName() string {
