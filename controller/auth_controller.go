@@ -14,7 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kwa0x2/realtime-chat-backend/config"
-	"github.com/kwa0x2/realtime-chat-backend/helpers"
+	"github.com/kwa0x2/realtime-chat-backend/utils"
 	"github.com/kwa0x2/realtime-chat-backend/service"
 )
 
@@ -43,13 +43,13 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 
 	token, err := googleConfig.Exchange(context.Background(), code)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, helpers.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "Code-Token Exchange Failed"))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "Code-Token Exchange Failed"))
 		return
 	}
 
 	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, helpers.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "User data fetch failed"))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "User data fetch failed"))
 		return
 	}
 	defer resp.Body.Close()
@@ -57,7 +57,7 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 	var userData map[string]interface{}
 	err = json.NewDecoder(resp.Body).Decode(&userData)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, helpers.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "JSON Parsing Failed"))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "JSON Parsing Failed"))
 		return
 	}
 
@@ -87,9 +87,9 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 		"exp":        time.Now().Add(time.Hour * 2).Unix(),
 	}
 
-	tokenString, err := helpers.GenerateToken(jwtClaims)
+	tokenString, err := utils.GenerateToken(jwtClaims)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, helpers.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "JWT Token Failed"))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "JWT Token Failed"))
 		return
 	}
 

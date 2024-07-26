@@ -2,22 +2,23 @@ package models
 
 import (
 	"time"
+
+	"github.com/kwa0x2/realtime-chat-backend/types"
 )
 
-type ReadStatus string
 
-const (
-	Unread ReadStatus = "unread"
-	Readed ReadStatus = "readed"
-)
 
 type Message struct {
-	MessageID      uint64 `json:"message_id" gorm:"not null;primaryKey;autoIncrement"`
-	MessageContent string `json:"message_content" gorm:"not null;size:10000"`
-	CreatedAt      time.Time `json:"createdAt" gorm:"not null;column:createdAt"`
-	UpdatedAt time.Time `json:"updatedAt" gorm:"not null;column:updatedAt"`
-	DeletedAt time.Time `json:"deletedAt" gorm:"column:deletedAt"`
-	MessageSenderID string `json:"message_sender_id" gorm:"not null"`
-	MessageReceiverID string `json:"message_receiver_id" gorm:"not null"`
-	MessageReadStatus ReadStatus `json:"message_read_status" gorm:"type:read_status;not null;default:unread"`
+	MessageID     uint64     `json:"message_id" gorm:"not null;primaryKey;autoIncrement"`
+	Message       string     `json:"message" gorm:"not null;size:10000"`
+	SenderID      string     `json:"sender_id" gorm:"not null"`
+	RoomID        string     `json:"room_id" gorm:"not null"`
+	MessageStatus types.ReadStatus `json:"message_status" gorm:"type:read_status;not null;default:unread"`
+	CreatedAt     time.Time  `json:"createdAt" gorm:"not null;column:createdAt"`
+	UpdatedAt     time.Time  `json:"updatedAt" gorm:"not null;column:updatedAt"`
+	DeletedAt     time.Time  `json:"deletedAt" gorm:"column:deletedAt"`
+}
+
+func (Message) TableName() string {
+	return "MESSAGE"
 }

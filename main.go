@@ -25,7 +25,7 @@ func main() {
 
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
@@ -43,15 +43,20 @@ func main() {
 	messageService := &service.MessageService{MessageRepository: messageRepository}
 	messageController := &controller.MessageController{MessageService: messageService}
 
-	friendshipRepository := &repository.FriendshipRepository{DB: config.DB}
-	friendshipService := &service.FriendshipService{FriendshipRepository: friendshipRepository}
-	friendshipController := &controller.FriendshipController{FriendshipService: friendshipService, UserService: userService}
+	friendRepository := &repository.FriendRepository{DB: config.DB}
+	friendService := &service.FriendService{FriendRepository: friendRepository}
+	friendController := &controller.FriendController{FriendService: friendService, UserService: userService}
+
+	requestRepository := &repository.RequestRepository{DB: config.DB}
+	requestService := &service.RequestService{RequestRepository: requestRepository}
+	requestController := &controller.RequestController{RequestService: requestService, FriendService: friendService}
 
 	routes.UserRoute(router, userController)
 	routes.AuthRoute(router, authController)
 	routes.MessageRoute(router, messageController)
-	routes.FriendshipRoute(router, friendshipController)
-	routes.SetupSocketIO(router, io, messageService,userService,friendshipService)
+	routes.FriendRoute(router, friendController)
+	routes.RequestRoute(router,requestController)
+	routes.SetupSocketIO(router, io, messageService,userService,friendService)
 
 	if err := router.Run(":9000"); err != nil {
 		log.Fatal("failed run app: ", err)

@@ -8,21 +8,21 @@ import (
 	"github.com/gin-contrib/sessions"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kwa0x2/realtime-chat-backend/helpers"
+	"github.com/kwa0x2/realtime-chat-backend/utils"
 )
 
 func JwtMiddleware() gin.HandlerFunc{
 	return func(ctx *gin.Context) {
 		token := ctx.GetHeader("Authorization")
 		if token == "" {
-			ctx.JSON(http.StatusUnauthorized, helpers.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization token is required"))
+			ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization token is required"))
 			ctx.Abort()
 			return
 		}
 
-		err := helpers.VerifyToken(token)
+		err := utils.VerifyToken(token)
 		if err != nil {
-			ctx.JSON(http.StatusUnauthorized, helpers.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization failed"))
+			ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization failed"))
 			ctx.Abort()
 			return
 		}
@@ -34,7 +34,7 @@ func SessionMiddleware() gin.HandlerFunc{
 		session:=sessions.Default(ctx)
 		sessionUserID:=session.Get("id")
 		if sessionUserID == nil {
-			ctx.JSON(http.StatusUnauthorized, helpers.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization failed"))
+			ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization failed"))
 			ctx.Abort()
 			return
 		}

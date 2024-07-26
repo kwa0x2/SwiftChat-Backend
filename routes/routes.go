@@ -22,7 +22,7 @@ func AuthRoute(router *gin.Engine, authController *controller.AuthController) {
 
 func UserRoute(router *gin.Engine, userController *controller.UserController) {
 	userRoutes := router.Group("/api/v1/user")
-	// userRoutes.Use(middlewares.JwtMiddleware())
+	userRoutes.Use(middlewares.JwtMiddleware())
 	{
 		userRoutes.POST("signup", userController.InsertUser)
 		userRoutes.GET("", userController.GetAll)
@@ -39,23 +39,29 @@ func MessageRoute(router *gin.Engine, messageController *controller.MessageContr
 	}
 }
 
-func FriendshipRoute(router *gin.Engine, friendshipController *controller.FriendshipController) {
-	friendshipRoutes := router.Group("/api/v1/friendship")
+func FriendRoute(router *gin.Engine, friendController *controller.FriendController) {
+	friendRoutes := router.Group("/api/v1/friend")
 	{
-		friendshipRoutes.POST("", friendshipController.SendFriendRequest)
-		friendshipRoutes.GET("coming", friendshipController.GetComingRequests)
-		friendshipRoutes.GET("friends", friendshipController.GetFriends)
-		friendshipRoutes.GET("blockeds", friendshipController.GetBlockeds)
-		friendshipRoutes.PUT("block", friendshipController.Block)
-		friendshipRoutes.DELETE("", friendshipController.Delete)
-		friendshipRoutes.PUT("accept", friendshipController.Accept)
-		friendshipRoutes.DELETE("reject", friendshipController.Reject)
+		friendRoutes.GET("", friendController.GetFriends) // get all
+		friendRoutes.GET("blockeds", friendController.GetBlockeds)
+		friendRoutes.PUT("block", friendController.Block)
+		friendRoutes.DELETE("", friendController.Delete)
 	}
 }
 
-func SetupSocketIO(router *gin.Engine, io *socket.Server, messageService *service.MessageService, userService *service.UserService, friendshipService *service.FriendshipService) {
+func RequestRoute(router *gin.Engine, requestController *controller.RequestController){
+	requestRoutes := router.Group("/api/v1/request")
+	{
+		requestRoutes.POST("", requestController.Insert) // send friend req
+		requestRoutes.GET("", requestController.GetComingRequests) // get coming req
+		requestRoutes.PATCH("accept", requestController.Accept)
+		requestRoutes.PATCH("reject", requestController.Reject)
+	}
+}
+
+func SetupSocketIO(router *gin.Engine, io *socket.Server, messageService *service.MessageService, userService *service.UserService, friendService *service.FriendService) {
 	socketGateway := gateway.NewSocketGateway(io)
-	socketAdapter := adapter.NewSocketAdapter(socketGateway, messageService, userService, friendshipService)
+	socketAdapter := adapter.NewSocketAdapter(socketGateway, messageService, userService, friendService)
 
 	socketAdapter.HandleConnection()
 

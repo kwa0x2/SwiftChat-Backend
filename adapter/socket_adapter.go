@@ -14,11 +14,11 @@ type SocketAdapter struct {
 	userSockets       map[string]string
 	messageService    *service.MessageService
 	userService       *service.UserService
-	friendshipService *service.FriendshipService
+	friendService *service.FriendService
 }
 
-func NewSocketAdapter(gateway gateway.SocketGateway, messageService *service.MessageService, userService *service.UserService, friendshipService *service.FriendshipService) *SocketAdapter {
-	return &SocketAdapter{gateway: gateway, userSockets: make(map[string]string), messageService: messageService, userService: userService, friendshipService: friendshipService}
+func NewSocketAdapter(gateway gateway.SocketGateway, messageService *service.MessageService, userService *service.UserService, friendService *service.FriendService) *SocketAdapter {
+	return &SocketAdapter{gateway: gateway, userSockets: make(map[string]string), messageService: messageService, userService: userService, friendService: friendService}
 }
 
 func (adapter *SocketAdapter) HandleConnection() {
@@ -43,9 +43,9 @@ func (adapter *SocketAdapter) HandleConnection() {
 
 			var messageObj models.Message
 
-			messageObj.MessageContent = data["message"].(string)
-			messageObj.MessageSenderID = connectedUserID
-			messageObj.MessageReceiverID = data["DestionationUserId"].(string)
+			messageObj.Message = data["message"].(string)
+			messageObj.SenderID = connectedUserID
+			messageObj.RoomID = data["DestionationUserId"].(string)
 
 			addedMessageData, err := adapter.messageService.Insert(&messageObj)
 			if err != nil {
@@ -56,9 +56,9 @@ func (adapter *SocketAdapter) HandleConnection() {
 			utils.Log().Info("Added and sended message %+v\n", addedMessageData)
 
 			// direkt eklenen veri donucek
-			adapter.gateway.Emit("chat", adapter.userSockets[messageObj.MessageReceiverID], map[string]interface{}{
-				"sender_id": messageObj.MessageSenderID,
-				"message":   messageObj.MessageContent,
+			adapter.gateway.Emit("chat", adapter.userSockets[messageObj.RoomID], map[string]interface{}{
+				"sender_id": messageObj.SenderID,
+				"message":   messageObj.Message,
 			})
 
 		})
