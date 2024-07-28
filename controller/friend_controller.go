@@ -2,13 +2,14 @@ package controller
 
 import (
 	"fmt"
+	"github.com/kwa0x2/realtime-chat-backend/types"
 	"net/http"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/kwa0x2/realtime-chat-backend/utils"
 	"github.com/kwa0x2/realtime-chat-backend/models"
 	"github.com/kwa0x2/realtime-chat-backend/service"
+	"github.com/kwa0x2/realtime-chat-backend/utils"
 )
 
 type FriendController struct {
@@ -44,7 +45,7 @@ func (ctrl *FriendController) GetFriends(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, responseData)
 }
 
-func (ctrl *FriendController) GetBlockeds(ctx *gin.Context) {
+func (ctrl *FriendController) GetBlocked(ctx *gin.Context) {
 	session := sessions.Default(ctx)
 
 	userMail := session.Get("mail")
@@ -53,7 +54,7 @@ func (ctrl *FriendController) GetBlockeds(ctx *gin.Context) {
 		return
 	}
 
-	data, err := ctrl.FriendService.GetBlockeds(userMail.(string))
+	data, err := ctrl.FriendService.GetBlocked(userMail.(string))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
 	}
@@ -62,8 +63,8 @@ func (ctrl *FriendController) GetBlockeds(ctx *gin.Context) {
 	for _, item := range data {
 		responseItem := map[string]interface{}{
 			"blocked_mail": item.UserMail,
-			"user_name":   item.User.UserName,
-			"user_photo":  item.User.UserPhoto,
+			"user_name":    item.User.UserName,
+			"user_photo":   item.User.UserPhoto,
 		}
 		responseData = append(responseData, responseItem)
 
@@ -72,14 +73,15 @@ func (ctrl *FriendController) GetBlockeds(ctx *gin.Context) {
 }
 
 type ActionBody struct {
-	Mail string `json:"friend_mail"`
+	Mail   string              `json:"mail"`
+	Status types.RequestStatus `json:"status"`
 }
 
 func (ctrl *FriendController) Block(ctx *gin.Context) {
-	var requestBody ActionBody
+	var actionBody ActionBody
 	session := sessions.Default(ctx)
 
-	if err := ctx.BindJSON(&requestBody); err != nil {
+	if err := ctx.BindJSON(&actionBody); err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
 		return
 	}
@@ -91,23 +93,24 @@ func (ctrl *FriendController) Block(ctx *gin.Context) {
 
 	var friendObj models.Friend
 
-	friendObj.UserMail = requestBody.Mail
-	friendObj.UserMail2 = userMail.(string)
+	friendObj.UserMail = actionBody.Mail    // blocklanan
+	friendObj.UserMail2 = userMail.(string) // blocklayan
 
-	fmt.Print(requestBody.Mail)
+	fmt.Print(actionBody.Mail)
 
 	if err := ctrl.FriendService.Block(&friendObj); err != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+		return
 	}
 
 	ctx.JSON(http.StatusOK, utils.NewSuccessResponse(http.StatusOK, "OK", "success"))
 }
 
 func (ctrl *FriendController) Delete(ctx *gin.Context) {
-	var requestBody ActionBody
+	var actionBody ActionBody
 	session := sessions.Default(ctx)
 
-	if err := ctx.BindJSON(&requestBody); err != nil {
+	if err := ctx.BindJSON(&actionBody); err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
 		return
 	}
@@ -119,7 +122,7 @@ func (ctrl *FriendController) Delete(ctx *gin.Context) {
 	}
 
 	var friendObj models.Friend
-	friendObj.UserMail = requestBody.Mail
+	friendObj.UserMail = actionBody.Mail
 	friendObj.UserMail2 = userMail.(string)
 
 	if err := ctrl.FriendService.Delete(&friendObj); err != nil {

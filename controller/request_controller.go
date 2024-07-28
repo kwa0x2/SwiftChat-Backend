@@ -5,23 +5,22 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/kwa0x2/realtime-chat-backend/utils"
 	"github.com/kwa0x2/realtime-chat-backend/models"
 	"github.com/kwa0x2/realtime-chat-backend/service"
-
+	"github.com/kwa0x2/realtime-chat-backend/utils"
 )
 
 type RequestController struct {
 	RequestService *service.RequestService
-	FriendService *service.FriendService
-	UserService *service.UserService
+	FriendService  *service.FriendService
+	UserService    *service.UserService
 }
 
 func (ctrl *RequestController) Insert(ctx *gin.Context) {
-	var requestBody ActionBody
+	var actionBody ActionBody
 	session := sessions.Default(ctx)
 
-	if err := ctx.BindJSON(&requestBody); err != nil {
+	if err := ctx.BindJSON(&actionBody); err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
 		return
 	}
@@ -32,7 +31,7 @@ func (ctrl *RequestController) Insert(ctx *gin.Context) {
 		return
 	}
 
-	if requestBody.Mail == userMail.(string) {
+	if actionBody.Mail == userMail.(string) {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", "You can't send friend request to yourself"))
 		return
 	}
@@ -51,7 +50,7 @@ func (ctrl *RequestController) Insert(ctx *gin.Context) {
 	var requestObj models.Request
 
 	requestObj.SenderMail = userMail.(string)
-	requestObj.ReceiverMail = requestBody.Mail
+	requestObj.ReceiverMail = actionBody.Mail
 
 	if err := ctrl.RequestService.Insert(&requestObj); err != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
@@ -89,53 +88,11 @@ func (ctrl *RequestController) GetComingRequests(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, responseData)
 }
 
-
-func (ctrl *RequestController) Accept(ctx *gin.Context) {
+func (ctrl *RequestController) PatchUpdateRequest(ctx *gin.Context) {
 	var requestBody ActionBody
 	session := sessions.Default(ctx)
 
-	if err := ctx.BindJSON(&requestBody);err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
-		return
-	}
-
-	userMail := session.Get("mail")
-	if userMail == nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", "UserId not found"))
-		return
-	}
-
-	var friendObj models.Friend
-
-	friendObj.UserMail = requestBody.Mail// sender
-	friendObj.UserMail2 = userMail.(string)  // receiver
-
-	if err := ctrl.FriendService.Insert(&friendObj); err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
-		return
-	}
-
-	var requestObj models.Request
-
-	requestObj.SenderMail = requestBody.Mail
-	requestObj.ReceiverMail = userMail.(string)
-
-	if err := ctrl.RequestService.Accept(&requestObj); err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
-		return
-	}
-
-
-
-	ctx.JSON(http.StatusOK, utils.NewSuccessResponse(http.StatusOK, "OK", "success"))
-}
-
-func (ctrl *RequestController) Reject(ctx *gin.Context) {
-	// mail yanlissa olayi ele alinsin
-	var requestBody ActionBody
-	session := sessions.Default(ctx)
-
-	if err := ctx.BindJSON(&requestBody);err != nil {
+	if err := ctx.BindJSON(&requestBody); err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
 		return
 	}
@@ -150,9 +107,11 @@ func (ctrl *RequestController) Reject(ctx *gin.Context) {
 
 	requestObj.SenderMail = requestBody.Mail
 	requestObj.ReceiverMail = userMail.(string)
+	requestObj.RequestStatus = requestBody.Status
 
-	if err := ctrl.RequestService.Reject(&requestObj); err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+	success, err := ctrl.RequestService.UpdateFriendshipRequest(&requestObj)
+	if err != nil || !success {
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Bad Request", err.Error()))
 		return
 	}
 
