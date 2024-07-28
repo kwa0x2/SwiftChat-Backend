@@ -9,18 +9,30 @@ type RequestService struct {
 	RequestRepository *repository.RequestRepository
 }
 
+// region INSERT NEW REQUEST SERVICE
 func (s *RequestService) Insert(request *models.Request) error {
 	return s.RequestRepository.Insert(request)
 }
 
+//endregion
+
+// region GET COMING REQUEST BY RECEIVER EMAIL SERVICE
 func (s *RequestService) GetComingRequests(receiverMail string) ([]*models.Request, error) {
 	return s.RequestRepository.GetComingRequests(receiverMail)
 }
 
-func (s *RequestService) Accept(request *models.Request) error {
-	return s.RequestRepository.Accept(request)
+//endregion V
+
+// region UPDATE REQUEST STATUS AND DELETE SERVICE
+func (s *RequestService) UpdateStatusAndDelete(request *models.Request) (bool, error) {
+	return s.RequestRepository.UpdateStatusAndDelete(request)
 }
 
-func (s *RequestService) Reject(request *models.Request) error {
-	return s.RequestRepository.Reject(request)
+//endregion
+
+// region UPDATE FRIENDSHIP REQUEST SERVICE
+func (s *RequestService) UpdateFriendshipRequest(request *models.Request) (bool, error) {
+	return s.RequestRepository.UpdateFriendshipRequest(request)
 }
+
+//endregion

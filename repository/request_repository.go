@@ -9,6 +9,7 @@ type RequestRepository struct {
 	DB *gorm.DB
 }
 
+// region INSERT NEW REQUEST REPOSITORY
 func (r *RequestRepository) Insert(request *models.Request) error {
 	if err := r.DB.Create(&request).Error; err != nil {
 		return err
@@ -16,12 +17,14 @@ func (r *RequestRepository) Insert(request *models.Request) error {
 	return nil
 }
 
+//endregion
 
+// region GET COMING REQUEST BY RECEIVER EMAIL REPOSITORY
 func (r *RequestRepository) GetComingRequests(receiverMail string) ([]*models.Request, error) {
 	var requests []*models.Request
 
-	if err := r.DB.
-		Where("receiver_mail = ? AND status = ?", receiverMail, "pending").
+	if err := r.DB.Debug().
+		Where("receiver_mail = ? AND request_status = ?", receiverMail, "pending").
 		Preload("User").
 		Find(&requests).Error; err != nil {
 		return nil, err
@@ -30,22 +33,82 @@ func (r *RequestRepository) GetComingRequests(receiverMail string) ([]*models.Re
 	return requests, nil
 }
 
-func (r *RequestRepository) Accept(request *models.Request) error {
-	if err := r.DB.
-		Where("receiver_mail = ? AND sender_mail = ?", request.ReceiverMail, request.SenderMail).
-		Update("status", "accepted").Error; err != nil {
-		return err
+//endregion
+
+// region UPDATE REQUEST STATUS AND DELETE REPOSITORY
+func (r *RequestRepository) UpdateStatusAndDelete(request *models.Request) (bool, error) {
+	tx := r.DB.Begin()
+
+	if tx.Error != nil {
+		return false, tx.Error
 	}
 
-	return nil
-}
-
-func (r *RequestRepository) Reject(request *models.Request) error {
-	if err := r.DB.
+	updateResult := tx.Debug().Model(&models.Request{}).
 		Where("receiver_mail = ? AND sender_mail = ?", request.ReceiverMail, request.SenderMail).
-		Update("status", "rejected").Error; err != nil {
-		return err
+		Update("request_status", request.RequestStatus)
+	if updateResult.Error != nil {
+		tx.Rollback()
+		return false, updateResult.Error
+	}
+	if updateResult.RowsAffected == 0 {
+		tx.Rollback()
+		return false, gorm.ErrRecordNotFound
 	}
 
-	return nil
+	deleteResult := tx.Debug().
+		Where("receiver_mail = ? AND sender_mail = ?", request.ReceiverMail, request.SenderMail).
+		Delete(&models.Request{})
+	if deleteResult.Error != nil {
+		tx.Rollback()
+		return false, deleteResult.Error
+	}
+	if deleteResult.RowsAffected == 0 {
+		tx.Rollback()
+		return false, gorm.ErrRecordNotFound
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return false, err
+	}
+
+	return true, nil
 }
+
+//endregion
+
+// region UPDATE FRIENDSHIP REQUEST REPOSITORY
+func (r *RequestRepository) UpdateFriendshipRequest(request *models.Request) (bool, error) {
+	tx := r.DB.Begin()
+
+	if tx.Error != nil {
+		return false, tx.Error
+	}
+
+	success, err := r.UpdateStatusAndDelete(request)
+	if !success || err != nil {
+		return false, err
+	}
+
+	if request.RequestStatus == "accepted" {
+		friend := models.Friend{
+			UserMail:     request.SenderMail,
+			UserMail2:    request.ReceiverMail,
+			FriendStatus: "friend",
+		}
+
+		if err := tx.Create(&friend).Error; err != nil {
+			tx.Rollback()
+			return false, err
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return false, err
+	}
+
+	return true, err
+}
+
+//endregion

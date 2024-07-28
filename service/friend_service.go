@@ -9,22 +9,37 @@ type FriendService struct {
 	FriendRepository *repository.FriendRepository
 }
 
+// region INSERT NEW FRIEND SERVICE
 func (s *FriendService) Insert(friend *models.Friend) error {
 	return s.FriendRepository.Insert(friend)
 }
 
+//endregion
+
+// region DELETE FRIEND BY MAIL SERVICE
 func (s *FriendService) Delete(friend *models.Friend) error {
 	return s.FriendRepository.Delete(friend)
 }
 
+//endregion
+
+// region GET FRIENDS BY MAIL SERVICE
 func (s *FriendService) GetFriends(userMail string) ([]*models.Friend, error) {
 	return s.FriendRepository.GetFriends(userMail)
 }
 
-func (s *FriendService) GetBlockeds(userId string) ([]*models.Friend, error) {
-	return s.FriendRepository.GetBlockeds(userId)
+//endregion
+
+// region GET BLOCKED FRIENDS BY MAIL SERVICE
+func (s *FriendService) GetBlocked(userId string) ([]*models.Friend, error) {
+	return s.FriendRepository.GetBlocked(userId)
 }
 
+//endregion
+
+// region BLOCK FRIEND BY MAIL SERVICE
 func (s *FriendService) Block(friend *models.Friend) error {
 	return s.FriendRepository.Block(friend)
 }
+
+//endregion

@@ -1,6 +1,7 @@
 package main
 
-import (	"log"
+import (
+	"log"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
@@ -35,10 +36,8 @@ func main() {
 	userService := &service.UserService{UserRepository: userRepository}
 	userController := &controller.UserController{UserService: userService}
 
-	authRepository := &repository.AuthRepository{DB: config.DB}
-	authService := &service.AuthService{AuthRepository: authRepository}
-	authController := &controller.AuthController{AuthService: authService}
-	
+	authController := &controller.AuthController{UserService: userService}
+
 	messageRepository := &repository.MessageRepository{DB: config.DB}
 	messageService := &service.MessageService{MessageRepository: messageRepository}
 	messageController := &controller.MessageController{MessageService: messageService}
@@ -55,8 +54,8 @@ func main() {
 	routes.AuthRoute(router, authController)
 	routes.MessageRoute(router, messageController)
 	routes.FriendRoute(router, friendController)
-	routes.RequestRoute(router,requestController)
-	routes.SetupSocketIO(router, io, messageService,userService,friendService)
+	routes.RequestRoute(router, requestController)
+	routes.SetupSocketIO(router, io, messageService, userService, friendService)
 
 	if err := router.Run(":9000"); err != nil {
 		log.Fatal("failed run app: ", err)

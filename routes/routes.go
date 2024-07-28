@@ -13,10 +13,11 @@ import (
 func AuthRoute(router *gin.Engine, authController *controller.AuthController) {
 	authRoutes := router.Group("/api/v1/auth")
 	{
-		authRoutes.GET("login",authController.GoogleLogin)
-		authRoutes.GET("callback", authController.GoogleCallback)
-		authRoutes.GET("",middlewares.SessionMiddleware(), authController.CheckAuth)
+		authRoutes.GET("login", authController.GoogleLogin)
 		authRoutes.POST("logout", authController.Logout)
+		authRoutes.POST("signup", authController.SignUp)
+		authRoutes.GET("callback", authController.GoogleCallback)
+		authRoutes.GET("", middlewares.SessionMiddleware(), authController.CheckAuth)
 	}
 }
 
@@ -24,10 +25,6 @@ func UserRoute(router *gin.Engine, userController *controller.UserController) {
 	userRoutes := router.Group("/api/v1/user")
 	userRoutes.Use(middlewares.JwtMiddleware())
 	{
-		userRoutes.POST("signup", userController.InsertUser)
-		userRoutes.GET("", userController.GetAll)
-		userRoutes.GET("get", userController.GetByEmail)
-
 	}
 }
 
@@ -43,19 +40,18 @@ func FriendRoute(router *gin.Engine, friendController *controller.FriendControll
 	friendRoutes := router.Group("/api/v1/friend")
 	{
 		friendRoutes.GET("", friendController.GetFriends) // get all
-		friendRoutes.GET("blockeds", friendController.GetBlockeds)
-		friendRoutes.PUT("block", friendController.Block)
+		friendRoutes.GET("blocked", friendController.GetBlocked)
+		friendRoutes.PATCH("block", friendController.Block)
 		friendRoutes.DELETE("", friendController.Delete)
 	}
 }
 
-func RequestRoute(router *gin.Engine, requestController *controller.RequestController){
+func RequestRoute(router *gin.Engine, requestController *controller.RequestController) {
 	requestRoutes := router.Group("/api/v1/request")
 	{
-		requestRoutes.POST("", requestController.Insert) // send friend req
+		requestRoutes.POST("", requestController.Insert)           // send friend req
 		requestRoutes.GET("", requestController.GetComingRequests) // get coming req
-		requestRoutes.PATCH("accept", requestController.Accept)
-		requestRoutes.PATCH("reject", requestController.Reject)
+		requestRoutes.PATCH("", requestController.PatchUpdateRequest)
 	}
 }
 
