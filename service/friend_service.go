@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/kwa0x2/realtime-chat-backend/models"
 	"github.com/kwa0x2/realtime-chat-backend/repository"
+	"gorm.io/gorm"
 )
 
 type FriendService struct {
@@ -10,8 +11,8 @@ type FriendService struct {
 }
 
 // region INSERT NEW FRIEND SERVICE
-func (s *FriendService) Insert(friend *models.Friend) error {
-	return s.FriendRepository.Insert(friend)
+func (s *FriendService) Insert(tx *gorm.DB, friend *models.Friend) error {
+	return s.FriendRepository.Insert(tx, friend)
 }
 
 //endregion

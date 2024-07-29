@@ -55,6 +55,13 @@ func RequestRoute(router *gin.Engine, requestController *controller.RequestContr
 	}
 }
 
+func RoomRoute(router *gin.Engine, roomController *controller.RoomController) {
+	roomRoutes := router.Group("/api/v1/room")
+	{
+		roomRoutes.POST("check", roomController.GetOrCreatePrivateRoom)
+	}
+}
+
 func SetupSocketIO(router *gin.Engine, io *socket.Server, messageService *service.MessageService, userService *service.UserService, friendService *service.FriendService) {
 	socketGateway := gateway.NewSocketGateway(io)
 	socketAdapter := adapter.NewSocketAdapter(socketGateway, messageService, userService, friendService)
