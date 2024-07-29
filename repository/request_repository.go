@@ -23,7 +23,7 @@ func (r *RequestRepository) Insert(request *models.Request) error {
 func (r *RequestRepository) GetComingRequests(receiverMail string) ([]*models.Request, error) {
 	var requests []*models.Request
 
-	if err := r.DB.Debug().
+	if err := r.DB.
 		Where("receiver_mail = ? AND request_status = ?", receiverMail, "pending").
 		Preload("User").
 		Find(&requests).Error; err != nil {
@@ -35,80 +35,50 @@ func (r *RequestRepository) GetComingRequests(receiverMail string) ([]*models.Re
 
 //endregion
 
-// region UPDATE REQUEST STATUS AND DELETE REPOSITORY
-func (r *RequestRepository) UpdateStatusAndDelete(request *models.Request) (bool, error) {
-	tx := r.DB.Begin()
-
-	if tx.Error != nil {
-		return false, tx.Error
+// region UPDATE BY MAIL REPOSITORY
+func (r *RequestRepository) Update(tx *gorm.DB, request *models.Request) error {
+	db := r.DB
+	if tx != nil {
+		db = tx
 	}
 
-	updateResult := tx.Debug().Model(&models.Request{}).
+	result := db.Debug().Model(&models.Request{}).
 		Where("receiver_mail = ? AND sender_mail = ?", request.ReceiverMail, request.SenderMail).
 		Update("request_status", request.RequestStatus)
-	if updateResult.Error != nil {
-		tx.Rollback()
-		return false, updateResult.Error
-	}
-	if updateResult.RowsAffected == 0 {
-		tx.Rollback()
-		return false, gorm.ErrRecordNotFound
+
+	if result.Error != nil {
+		return result.Error
 	}
 
-	deleteResult := tx.Debug().
-		Where("receiver_mail = ? AND sender_mail = ?", request.ReceiverMail, request.SenderMail).
-		Delete(&models.Request{})
-	if deleteResult.Error != nil {
-		tx.Rollback()
-		return false, deleteResult.Error
-	}
-	if deleteResult.RowsAffected == 0 {
-		tx.Rollback()
-		return false, gorm.ErrRecordNotFound
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return false, err
-	}
-
-	return true, nil
+	return nil
 }
 
 //endregion
 
-// region UPDATE FRIENDSHIP REQUEST REPOSITORY
-func (r *RequestRepository) UpdateFriendshipRequest(request *models.Request) (bool, error) {
-	tx := r.DB.Begin()
-
-	if tx.Error != nil {
-		return false, tx.Error
+// region DELETE BY MAIL REPOSITORY
+func (r *RequestRepository) Delete(tx *gorm.DB, request *models.Request) error {
+	db := r.DB
+	if tx != nil {
+		db = tx
 	}
 
-	success, err := r.UpdateStatusAndDelete(request)
-	if !success || err != nil {
-		return false, err
+	result := db.Debug().Model(&models.Request{}).
+		Where("receiver_mail = ? AND sender_mail = ?", request.ReceiverMail, request.SenderMail).
+		Delete(&models.Request{})
+
+	if result.Error != nil {
+		return result.Error
 	}
 
-	if request.RequestStatus == "accepted" {
-		friend := models.Friend{
-			UserMail:     request.SenderMail,
-			UserMail2:    request.ReceiverMail,
-			FriendStatus: "friend",
-		}
-
-		if err := tx.Create(&friend).Error; err != nil {
-			tx.Rollback()
-			return false, err
-		}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return false, err
-	}
-
-	return true, err
+	return nil
 }
 
 //endregion

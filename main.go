@@ -47,14 +47,22 @@ func main() {
 	friendController := &controller.FriendController{FriendService: friendService, UserService: userService}
 
 	requestRepository := &repository.RequestRepository{DB: config.DB}
-	requestService := &service.RequestService{RequestRepository: requestRepository}
+	requestService := &service.RequestService{RequestRepository: requestRepository, FriendService: friendService}
 	requestController := &controller.RequestController{RequestService: requestService, FriendService: friendService}
+
+	userRoomRepository := &repository.UserRoomRepository{DB: config.DB}
+	userRoomService := &service.UserRoomService{UserRoomRepository: userRoomRepository}
+
+	roomRepository := &repository.RoomRepository{DB: config.DB}
+	roomService := &service.RoomService{RoomRepository: roomRepository, UserRoomService: userRoomService}
+	roomController := &controller.RoomController{RoomService: roomService, UserRoomService: userRoomService, UserService: userService}
 
 	routes.UserRoute(router, userController)
 	routes.AuthRoute(router, authController)
 	routes.MessageRoute(router, messageController)
 	routes.FriendRoute(router, friendController)
 	routes.RequestRoute(router, requestController)
+	routes.RoomRoute(router, roomController)
 	routes.SetupSocketIO(router, io, messageService, userService, friendService)
 
 	if err := router.Run(":9000"); err != nil {
