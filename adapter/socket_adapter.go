@@ -1,7 +1,7 @@
 package adapter
 
 import (
-
+	"github.com/google/uuid"
 	"github.com/kwa0x2/realtime-chat-backend/gateway"
 	"github.com/kwa0x2/realtime-chat-backend/models"
 	"github.com/kwa0x2/realtime-chat-backend/service"
@@ -10,11 +10,11 @@ import (
 )
 
 type SocketAdapter struct {
-	gateway           gateway.SocketGateway
-	userSockets       map[string]string
-	messageService    *service.MessageService
-	userService       *service.UserService
-	friendService *service.FriendService
+	gateway        gateway.SocketGateway
+	userSockets    map[string]string
+	messageService *service.MessageService
+	userService    *service.UserService
+	friendService  *service.FriendService
 }
 
 func NewSocketAdapter(gateway gateway.SocketGateway, messageService *service.MessageService, userService *service.UserService, friendService *service.FriendService) *SocketAdapter {
@@ -26,90 +26,56 @@ func (adapter *SocketAdapter) HandleConnection() {
 		ctx := socketio.Request().Context()
 		connectedUserID := ctx.Value("id").(string)
 
-		utils.Log().Info(`socket connected %s user id %s`, socketio.Id(), connectedUserID)
+		utils.Log().Info("new connection established socketid: %s userid: %s", socketio.Id(), connectedUserID)
 
 		adapter.userSockets[connectedUserID] = string(socketio.Id())
 
-		socketio.On("disconnect", func(reason ...any) {
-			utils.Log().Info(`socket disconnected %s user id %s`, socketio.Id(), connectedUserID)
+		socketio.On("joinRoom", func(roomData ...any) {
+			roomId, ok := roomData[0].(string)
+			if !ok {
+				utils.Log().Error(`socket message type error socketid: %s `, socketio.Id())
+				return
+			}
+			adapter.JoinRoom(socketio, roomId)
 		})
 
 		socketio.On("sendMessage", func(args ...any) {
 			data, ok := args[0].(map[string]interface{})
 			if !ok {
-				utils.Log().Error(`socket message type error %s user id %s`, socketio.Id(), connectedUserID)
+				utils.Log().Error(`socket message type error socketid: %s`, socketio.Id())
+				return
+			}
+
+			roomID, err := uuid.Parse(data["room_id"].(string))
+			if err != nil {
+				utils.Log().Error("invalid room_id format")
 				return
 			}
 
 			var messageObj models.Message
 
-			messageObj.Message = data["message"].(string)
 			messageObj.SenderID = connectedUserID
-			messageObj.RoomID = data["DestionationUserId"].(string)
+			messageObj.Message = data["message"].(string)
+			messageObj.RoomID = roomID
 
-			addedMessageData, err := adapter.messageService.Insert(&messageObj)
-			if err != nil {
-				utils.Log().Error(`while addding message error`)
-				return
-			}
-
-			utils.Log().Info("Added and sended message %+v\n", addedMessageData)
-
-			// direkt eklenen veri donucek
-			adapter.gateway.Emit("chat", adapter.userSockets[messageObj.RoomID], map[string]interface{}{
-				"sender_id": messageObj.SenderID,
-				"message":   messageObj.Message,
-			})
-
+			adapter.SendMessage(&messageObj)
 		})
 
-		// socketio.On("sendFriendship", func(args ...any) {
-		// 	data, ok := args[0].(map[string]interface{})
-		// 	if !ok {
-		// 		utils.Log().Error(`socket message type error %s user id %s`, socketio.Id(), connectedUserID)
-		// 		return
-		// 	}
-		// 	utils.Log().Printf(`socket message type error %s user id %s email %s`, socketio.Id(), connectedUserID, data["email"].(string))
-
-		// 	user, err := adapter.userService.GetByEmail(data["email"].(string))
-
-		// 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// 		utils.Log().Printf("User with email %s not found", data["email"].(string))
-
-		// 		adapter.gateway.Emit("response", adapter.userSockets[connectedUserID], map[string]interface{}{
-		// 			"status":  "success",
-		// 			"message": "Friendship email sent successfully",
-		// 		})
-		// 		return
-		// 	}
-			
-		// 	if err != nil {
-		// 		utils.Log().Error(`while getting user error`)
-		// 		return
-		// 	}
-
-		// 	var friendshipObj models.Friendship
-
-		// 	friendshipObj.SenderId = connectedUserID
-		// 	friendshipObj.ReceiverId = user.UserID
-		// 	friendshipObj.FriendshipStatus = "pending"
-
-		// 	friendshipStatus, err := adapter.friendshipService.SendFriendRequest(&friendshipObj)
-		// 	if err != nil {
-		// 		utils.Log().Error(`while adding friendship error`)
-		// 		return
-		// 	}
-
-		// 	adapter.gateway.Emit("friendship", adapter.userSockets[friendshipObj.ReceiverId], map[string]interface{}{
-		// 		"income_friendship_sender_id": friendshipObj.SenderId,
-		// 		"income_friendship_status":    friendshipStatus,
-		// 	})
-
-		// 	adapter.gateway.Emit("response", adapter.userSockets[connectedUserID], map[string]interface{}{
-		// 		"status":  "success",
-		// 		"message": "Friendship request sent successfully",
-		// 	})
-
-		// })
 	})
+}
+
+func (adapter *SocketAdapter) JoinRoom(socketio *socket.Socket, room string) {
+	adapter.gateway.JoinRoom(socketio, room)
+	utils.Log().Info("User %s joined room %s", socketio.Id(), room)
+}
+
+func (adapter *SocketAdapter) SendMessage(messageObj *models.Message) {
+	addedMessageData, err := adapter.messageService.InsertAndUpdateRoom(messageObj)
+	if err != nil {
+		utils.Log().Error(`error while adding message `)
+		return
+	}
+
+	utils.Log().Info("Added and sended message %+v\n", addedMessageData)
+	adapter.gateway.Emit(messageObj.RoomID.String(), addedMessageData)
 }

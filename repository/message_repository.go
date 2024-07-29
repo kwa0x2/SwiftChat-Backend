@@ -9,8 +9,13 @@ type MessageRepository struct {
 	DB *gorm.DB
 }
 
-func (r *MessageRepository) Insert(message *models.Message) (*models.Message, error) {
-	if err := r.DB.Create(&message).Error; err != nil {
+func (r *MessageRepository) CreateMessage(tx *gorm.DB, message *models.Message) (*models.Message, error) {
+	db := r.DB
+	if tx != nil {
+		db = tx
+	}
+
+	if err := db.Create(&message).Error; err != nil {
 		return nil, err
 	}
 	return message, nil

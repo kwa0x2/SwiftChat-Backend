@@ -4,10 +4,11 @@ import (
 	"github.com/zishang520/socket.io/socket"
 )
 
-
 type SocketGateway interface {
 	OnConnection(callback func(socketio *socket.Socket))
-	Emit(event, room string, data interface{})
+	EmitRoom(room, event string, data interface{})
+	JoinRoom(socketio *socket.Socket, room string)
+	Emit(event string, data interface{})
 }
 
 type socketGateway struct {
@@ -25,7 +26,14 @@ func (g *socketGateway) OnConnection(callback func(socketio *socket.Socket)) {
 	})
 }
 
-func (g *socketGateway) Emit(event, room string, data interface{}){
-	g.server.Of("/chat", nil).To(socket.Room(room)).Emit(event,data)
+func (g *socketGateway) EmitRoom(room, event string, data interface{}) {
+	g.server.Of("/chat", nil).To(socket.Room(room)).Emit(event, data)
 }
 
+func (g *socketGateway) Emit(event string, data interface{}) {
+	g.server.Of("/chat", nil).Emit(event, data)
+}
+
+func (g *socketGateway) JoinRoom(socketio *socket.Socket, room string) {
+	socketio.Join(socket.Room(room))
+}
