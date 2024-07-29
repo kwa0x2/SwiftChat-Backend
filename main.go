@@ -38,8 +38,15 @@ func main() {
 
 	authController := &controller.AuthController{UserService: userService}
 
+	userRoomRepository := &repository.UserRoomRepository{DB: config.DB}
+	userRoomService := &service.UserRoomService{UserRoomRepository: userRoomRepository}
+
+	roomRepository := &repository.RoomRepository{DB: config.DB}
+	roomService := &service.RoomService{RoomRepository: roomRepository, UserRoomService: userRoomService}
+	roomController := &controller.RoomController{RoomService: roomService, UserRoomService: userRoomService, UserService: userService}
+
 	messageRepository := &repository.MessageRepository{DB: config.DB}
-	messageService := &service.MessageService{MessageRepository: messageRepository}
+	messageService := &service.MessageService{MessageRepository: messageRepository, RoomService: roomService}
 	messageController := &controller.MessageController{MessageService: messageService}
 
 	friendRepository := &repository.FriendRepository{DB: config.DB}
@@ -49,13 +56,6 @@ func main() {
 	requestRepository := &repository.RequestRepository{DB: config.DB}
 	requestService := &service.RequestService{RequestRepository: requestRepository, FriendService: friendService}
 	requestController := &controller.RequestController{RequestService: requestService, FriendService: friendService}
-
-	userRoomRepository := &repository.UserRoomRepository{DB: config.DB}
-	userRoomService := &service.UserRoomService{UserRoomRepository: userRoomRepository}
-
-	roomRepository := &repository.RoomRepository{DB: config.DB}
-	roomService := &service.RoomService{RoomRepository: roomRepository, UserRoomService: userRoomService}
-	roomController := &controller.RoomController{RoomService: roomService, UserRoomService: userRoomService, UserService: userService}
 
 	routes.UserRoute(router, userController)
 	routes.AuthRoute(router, authController)

@@ -7,7 +7,7 @@ import (
 )
 
 type Room struct {
-	RoomID        uuid.UUID      `json:"room_id" gorm:"not null;default:gen_random_uuid()"`
+	RoomID        uuid.UUID      `json:"room_id" gorm:"not null;type:uuid;default:gen_random_uuid()"`
 	CreatedUserID string         `json:"created_user_id" gorm:"not null"`
 	MessageCount  int64          `json:"message_count"`
 	LastMessage   string         `json:"last_message"`
