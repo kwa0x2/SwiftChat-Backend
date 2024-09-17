@@ -10,8 +10,13 @@ type RequestRepository struct {
 }
 
 // region INSERT NEW REQUEST REPOSITORY
-func (r *RequestRepository) Insert(request *models.Request) error {
-	if err := r.DB.Create(&request).Error; err != nil {
+func (r *RequestRepository) Insert(tx *gorm.DB, request *models.Request) error {
+	db := r.DB
+	if tx != nil {
+		db = tx
+	}
+
+	if err := db.Create(&request).Error; err != nil {
 		return err
 	}
 	return nil
@@ -42,7 +47,7 @@ func (r *RequestRepository) Update(tx *gorm.DB, request *models.Request) error {
 		db = tx
 	}
 
-	result := db.Debug().Model(&models.Request{}).
+	result := db.Model(&models.Request{}).
 		Where("receiver_mail = ? AND sender_mail = ?", request.ReceiverMail, request.SenderMail).
 		Update("request_status", request.RequestStatus)
 
@@ -66,7 +71,7 @@ func (r *RequestRepository) Delete(tx *gorm.DB, request *models.Request) error {
 		db = tx
 	}
 
-	result := db.Debug().Model(&models.Request{}).
+	result := db.Model(&models.Request{}).
 		Where("receiver_mail = ? AND sender_mail = ?", request.ReceiverMail, request.SenderMail).
 		Delete(&models.Request{})
 
@@ -82,3 +87,13 @@ func (r *RequestRepository) Delete(tx *gorm.DB, request *models.Request) error {
 }
 
 //endregion
+
+func (r *RequestRepository) InsertAndReturnUser(request *models.Request) (*models.Request, error) {
+	var requestData *models.Request
+
+	if err := r.DB.Create(request).Preload("User").Find(&requestData).Error; err != nil {
+		return nil, err
+	}
+
+	return requestData, nil
+}

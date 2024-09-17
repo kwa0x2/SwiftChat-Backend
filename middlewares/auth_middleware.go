@@ -11,7 +11,7 @@ import (
 	"github.com/kwa0x2/realtime-chat-backend/utils"
 )
 
-func JwtMiddleware() gin.HandlerFunc{
+func JwtMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		token := ctx.GetHeader("Authorization")
 		if token == "" {
@@ -29,18 +29,23 @@ func JwtMiddleware() gin.HandlerFunc{
 	}
 }
 
-func SessionMiddleware() gin.HandlerFunc{
-	return func(ctx *gin.Context, ) {
-		session:=sessions.Default(ctx)
-		sessionUserID:=session.Get("id")
-		if sessionUserID == nil {
+func SessionMiddleware() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		session := sessions.Default(ctx)
+		sessionUserID := session.Get("id")
+		sessionUserMail := session.Get("mail")
+
+		if sessionUserID == nil || sessionUserMail == nil {
 			ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization failed"))
 			ctx.Abort()
 			return
 		}
+
 		session.Set("Expires", time.Now().Add(24*time.Hour))
 
 		socketCtx := context.WithValue(ctx.Request.Context(), "id", sessionUserID.(string))
+		socketCtx = context.WithValue(socketCtx, "mail", sessionUserMail.(string))
+
 		ctx.Request = ctx.Request.WithContext(socketCtx)
 		session.Save()
 		return

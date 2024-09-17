@@ -52,7 +52,7 @@ func (ctrl *RequestController) Insert(ctx *gin.Context) {
 	requestObj.SenderMail = userMail.(string)
 	requestObj.ReceiverMail = actionBody.Mail
 
-	if err := ctrl.RequestService.Insert(&requestObj); err != nil {
+	if err := ctrl.RequestService.Insert(nil, &requestObj); err != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
 		return
 	}

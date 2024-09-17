@@ -2,6 +2,7 @@ package models
 
 import (
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"time"
 
 	"github.com/kwa0x2/realtime-chat-backend/types"
@@ -15,7 +16,7 @@ type Message struct {
 	MessageStatus types.ReadStatus `json:"message_status" gorm:"type:read_status;not null;default:unread"`
 	CreatedAt     time.Time        `json:"createdAt" gorm:"not null;column:createdAt"`
 	UpdatedAt     time.Time        `json:"updatedAt" gorm:"not null;column:updatedAt"`
-	DeletedAt     time.Time        `json:"deletedAt" gorm:"column:deletedAt"`
+	DeletedAt     gorm.DeletedAt   `json:"deletedAt" gorm:"column:deletedAt"`
 }
 
 func (Message) TableName() string {

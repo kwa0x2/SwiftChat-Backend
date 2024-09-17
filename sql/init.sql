@@ -101,28 +101,7 @@ CREATE TABLE IF NOT EXISTS public."MESSAGE"
     NOT VALID
     );
 
-CREATE TABLE IF NOT EXISTS public."FRIEND"
-(
-    user_mail character varying COLLATE pg_catalog."default" NOT NULL,
-    user_mail2 character varying COLLATE pg_catalog."default" NOT NULL,
-    "createdAt" timestamp without time zone NOT NULL,
-    "updatedAt" timestamp without time zone,
-    "deletedAt" timestamp without time zone,
-    friend_status friend_status NOT NULL DEFAULT 'friend'::friend_status,
-    CONSTRAINT "FRIEND_pkey" PRIMARY KEY (user_mail2, user_mail),
-    CONSTRAINT friend_unique UNIQUE NULLS NOT DISTINCT (user_mail, user_mail2, "deletedAt"),
-    CONSTRAINT user_mail FOREIGN KEY (user_mail)
-    REFERENCES public."USER" (user_email) MATCH SIMPLE
-    ON UPDATE NO ACTION
-    ON DELETE NO ACTION
-    NOT VALID,
-    CONSTRAINT user_mail2 FOREIGN KEY (user_mail2)
-    REFERENCES public."USER" (user_email) MATCH SIMPLE
-    ON UPDATE NO ACTION
-    ON DELETE NO ACTION
-    NOT VALID
-    );
-
+z
 CREATE TABLE IF NOT EXISTS public."REQUEST"
 (
     request_id bigint NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 9223372036854775807 CACHE 1 ),

@@ -32,3 +32,12 @@ func (r *MessageRepository) GetPrivateConversation(senderId, receiverId string) 
 
 	return messages, nil
 }
+
+func (r *MessageRepository) GetMessageHistoryByRoomID(roomId string) ([]*models.Message, error) {
+	var messages []*models.Message
+	if err := r.DB.Where("room_id = ?", roomId).Order("\"createdAt\" ASC").Find(&messages).Error; err != nil {
+		return nil, err
+	}
+
+	return messages, nil
+}

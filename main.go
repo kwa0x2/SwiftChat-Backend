@@ -54,7 +54,7 @@ func main() {
 	friendController := &controller.FriendController{FriendService: friendService, UserService: userService}
 
 	requestRepository := &repository.RequestRepository{DB: config.DB}
-	requestService := &service.RequestService{RequestRepository: requestRepository, FriendService: friendService}
+	requestService := &service.RequestService{RequestRepository: requestRepository, FriendService: friendService, UserService: userService}
 	requestController := &controller.RequestController{RequestService: requestService, FriendService: friendService}
 
 	routes.UserRoute(router, userController)
@@ -63,7 +63,7 @@ func main() {
 	routes.FriendRoute(router, friendController)
 	routes.RequestRoute(router, requestController)
 	routes.RoomRoute(router, roomController)
-	routes.SetupSocketIO(router, io, messageService, userService, friendService)
+	routes.SetupSocketIO(router, io, messageService, userService, friendService, requestService)
 
 	if err := router.Run(":9000"); err != nil {
 		log.Fatal("failed run app: ", err)

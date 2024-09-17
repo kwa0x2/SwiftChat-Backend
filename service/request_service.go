@@ -9,11 +9,12 @@ import (
 type RequestService struct {
 	RequestRepository *repository.RequestRepository
 	FriendService     *FriendService
+	UserService       *UserService
 }
 
 // region INSERT NEW REQUEST SERVICE
-func (s *RequestService) Insert(request *models.Request) error {
-	return s.RequestRepository.Insert(request)
+func (s *RequestService) Insert(tx *gorm.DB, request *models.Request) error {
+	return s.RequestRepository.Insert(tx, request)
 }
 
 //endregion
@@ -78,3 +79,33 @@ func (s *RequestService) UpdateFriendshipRequest(request *models.Request) (bool,
 }
 
 //endregion
+
+func (s *RequestService) InsertAndReturnUser(request *models.Request) (map[string]interface{}, error) {
+	tx := s.RequestRepository.DB.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	if err := s.Insert(tx, request); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	userData, err := s.UserService.GetByEmail(request.ReceiverMail)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
+
+	result := map[string]interface{}{
+		"sender_mail": request.SenderMail,
+		"user_name":   userData.UserName,
+		"user_photo":  userData.UserPhoto,
+	}
+
+	return result, nil
+}
