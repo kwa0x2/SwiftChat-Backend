@@ -15,16 +15,18 @@ type SocketAdapter struct {
 	messageService *service.MessageService
 	userService    *service.UserService
 	friendService  *service.FriendService
+	requestService *service.RequestService
 }
 
-func NewSocketAdapter(gateway gateway.SocketGateway, messageService *service.MessageService, userService *service.UserService, friendService *service.FriendService) *SocketAdapter {
-	return &SocketAdapter{gateway: gateway, userSockets: make(map[string]string), messageService: messageService, userService: userService, friendService: friendService}
+func NewSocketAdapter(gateway gateway.SocketGateway, messageService *service.MessageService, userService *service.UserService, friendService *service.FriendService, requestService *service.RequestService) *SocketAdapter {
+	return &SocketAdapter{gateway: gateway, userSockets: make(map[string]string), messageService: messageService, userService: userService, friendService: friendService, requestService: requestService}
 }
 
 func (adapter *SocketAdapter) HandleConnection() {
 	adapter.gateway.OnConnection(func(socketio *socket.Socket) {
 		ctx := socketio.Request().Context()
 		connectedUserID := ctx.Value("id").(string)
+		connectedUserMail := ctx.Value("mail").(string)
 
 		utils.Log().Info("new connection established socketid: %s userid: %s", socketio.Id(), connectedUserID)
 
@@ -52,13 +54,29 @@ func (adapter *SocketAdapter) HandleConnection() {
 				return
 			}
 
-			var messageObj models.Message
+			messageObj := models.Message{
+				SenderID: connectedUserID,
+				Message:  data["message"].(string),
+				RoomID:   roomID,
+			}
 
-			messageObj.SenderID = connectedUserID
-			messageObj.Message = data["message"].(string)
-			messageObj.RoomID = roomID
+			adapter.SendMessage(&messageObj, connectedUserMail, data["other_user_email"].(string))
 
-			adapter.SendMessage(&messageObj)
+		})
+
+		socketio.On("sendFriend", func(emailData ...any) {
+			receiverMail, ok := emailData[0].(string)
+			if !ok {
+				utils.Log().Error(`socket message type error socketid: %s`, socketio.Id())
+				return
+			}
+
+			requestObj := models.Request{
+				SenderMail:   connectedUserMail,
+				ReceiverMail: receiverMail,
+			}
+
+			adapter.SendFriend(&requestObj, receiverMail)
 		})
 
 	})
@@ -69,13 +87,55 @@ func (adapter *SocketAdapter) JoinRoom(socketio *socket.Socket, room string) {
 	utils.Log().Info("User %s joined room %s", socketio.Id(), room)
 }
 
-func (adapter *SocketAdapter) SendMessage(messageObj *models.Message) {
-	addedMessageData, err := adapter.messageService.InsertAndUpdateRoom(messageObj)
+func (adapter *SocketAdapter) SendMessage(messageObj *models.Message, senderMail, receiverMail string) {
+	isBlocked, err := adapter.friendService.IsBlocked(senderMail, receiverMail)
 	if err != nil {
+		utils.Log().Error(`error while get blocked status `)
+		return
+	}
+	if isBlocked != false {
+		utils.Log().Error(`friend is blocked `)
+		return
+	}
+
+	addedMessageData, messageErr := adapter.messageService.InsertAndUpdateRoom(messageObj)
+	if messageErr != nil {
 		utils.Log().Error(`error while adding message `)
 		return
 	}
 
 	utils.Log().Info("Added and sended message %+v\n", addedMessageData)
 	adapter.gateway.Emit(messageObj.RoomID.String(), addedMessageData)
+
+	notifyData := map[string]interface{}{
+		"room_id":   addedMessageData.RoomID,
+		"message":   addedMessageData.Message,
+		"sender_id": addedMessageData.SenderID,
+		"updatedAt": addedMessageData.UpdatedAt,
+	}
+
+	adapter.SendNotification("message", receiverMail, notifyData)
+}
+
+func (adapter *SocketAdapter) SendFriend(request *models.Request, receiverMail string) {
+	data, err := adapter.requestService.InsertAndReturnUser(request)
+	if err != nil {
+		utils.Log().Error(`error while sending friend request `)
+		return
+	}
+
+	utils.Log().Info("successfully send friend request %s %+v\n", receiverMail, data)
+	adapter.SendNotification("friend_request", receiverMail, data)
+
+}
+
+func (adapter *SocketAdapter) SendNotification(notifyType, receiverMail string, notifyObj any) {
+	data := map[string]interface{}{
+		"notification_type": notifyType,
+		"data":              notifyObj,
+	}
+
+	utils.Log().Info("notify %+v\n mail:%s", data, receiverMail)
+
+	adapter.gateway.EmitRoom("notification", receiverMail, data)
 }

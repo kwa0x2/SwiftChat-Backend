@@ -47,3 +47,7 @@ func (s *MessageService) InsertAndUpdateRoom(message *models.Message) (*models.M
 
 	return addedMessage, nil
 }
+
+func (s *MessageService) GetMessageHistoryByRoomID(roomId string) ([]*models.Message, error) {
+	return s.MessageRepository.GetMessageHistoryByRoomID(roomId)
+}

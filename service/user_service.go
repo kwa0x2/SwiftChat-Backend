@@ -50,3 +50,7 @@ func (s *UserService) IsIdUnique(id string) bool {
 }
 
 //endregion
+
+func (s *UserService) UpdateUsernameByMail(userName, userEmail string) error {
+	return s.UserRepository.UpdateUsernameByMail(userName, userEmail)
+}

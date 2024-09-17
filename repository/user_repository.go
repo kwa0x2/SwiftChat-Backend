@@ -66,3 +66,10 @@ func (r *UserRepository) IsIdUnique(id string) bool {
 }
 
 //endregion
+
+func (r *UserRepository) UpdateUsernameByMail(userName, userEmail string) error {
+	if err := r.DB.Model(&models.User{}).Where("user_email = ?", userEmail).Update("user_name", userName).Error; err != nil {
+		return err
+	}
+	return nil
+}

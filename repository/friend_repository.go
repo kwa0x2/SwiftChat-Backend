@@ -108,3 +108,17 @@ func (r *FriendRepository) Block(friend *models.Friend) error {
 }
 
 //endregion
+
+func (r *FriendRepository) IsBlocked(userMail, otherUserMail string) (bool, error) {
+	var count int64
+
+	if err := r.DB.Model(&models.Friend{}).
+		Where("(user_mail = ? OR user_mail2 = ?) AND (user_mail = ? OR user_mail2 = ?)",
+			userMail, userMail, otherUserMail, otherUserMail).
+		Where("friend_status != ?", "friend").
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}

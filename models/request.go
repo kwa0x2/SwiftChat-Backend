@@ -13,7 +13,8 @@ type Request struct {
 	RequestStatus types.RequestStatus `json:"request_status" gorm:"not null;type:request_status;default:pending"`
 	CreatedAt     time.Time           `json:"createdAt" gorm:"column:createdAt;not null"`
 	DeletedAt     gorm.DeletedAt      `json:"deletedAt" gorm:"column:deletedAt"`
-	User          User                `json:"user" gorm:"foreignKey:SenderMail;references:UserEmail"`
+
+	User User `json:"user" gorm:"foreignKey:SenderMail;references:UserEmail"`
 }
 
 func (Request) TableName() string {

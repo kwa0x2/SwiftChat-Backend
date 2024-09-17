@@ -23,16 +23,18 @@ func AuthRoute(router *gin.Engine, authController *controller.AuthController) {
 
 func UserRoute(router *gin.Engine, userController *controller.UserController) {
 	userRoutes := router.Group("/api/v1/user")
-	userRoutes.Use(middlewares.JwtMiddleware())
+	userRoutes.Use(middlewares.SessionMiddleware())
 	{
+		userRoutes.PATCH("username", userController.Update)
 	}
 }
 
 func MessageRoute(router *gin.Engine, messageController *controller.MessageController) {
 	messageRoutes := router.Group("/api/v1/message")
-	messageRoutes.Use(middlewares.SessionMiddleware())
+	//messageRoutes.Use(middlewares.SessionMiddleware())
 	{
 		messageRoutes.POST("conversation/private", messageController.GetPrivateConversation)
+		messageRoutes.POST("history", messageController.GetMessageHistory)
 	}
 }
 
@@ -59,12 +61,13 @@ func RoomRoute(router *gin.Engine, roomController *controller.RoomController) {
 	roomRoutes := router.Group("/api/v1/room")
 	{
 		roomRoutes.POST("check", roomController.GetOrCreatePrivateRoom)
+		roomRoutes.GET("chatlist", roomController.GetChatList)
 	}
 }
 
-func SetupSocketIO(router *gin.Engine, io *socket.Server, messageService *service.MessageService, userService *service.UserService, friendService *service.FriendService) {
+func SetupSocketIO(router *gin.Engine, io *socket.Server, messageService *service.MessageService, userService *service.UserService, friendService *service.FriendService, requestService *service.RequestService) {
 	socketGateway := gateway.NewSocketGateway(io)
-	socketAdapter := adapter.NewSocketAdapter(socketGateway, messageService, userService, friendService)
+	socketAdapter := adapter.NewSocketAdapter(socketGateway, messageService, userService, friendService, requestService)
 
 	socketAdapter.HandleConnection()
 

@@ -44,3 +44,7 @@ func (s *FriendService) Block(friend *models.Friend) error {
 }
 
 //endregion
+
+func (s *FriendService) IsBlocked(userMail, otherUserMail string) (bool, error) {
+	return s.FriendRepository.IsBlocked(userMail, otherUserMail)
+}
