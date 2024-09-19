@@ -37,9 +37,9 @@ func (s *UserService) GetByEmail(email string) (*models.User, error) {
 
 //endregion
 
-// region GET USERNAME BY ID SERVICE
-func (s *UserService) GetUsernameById(id string) string {
-	return s.UserRepository.GetUsernameById(id)
+// region GET USER BY ID SERVICE
+func (s *UserService) GetUserById(id string) (*models.User, error) {
+	return s.UserRepository.GetUserById(id)
 }
 
 //endregion
@@ -53,4 +53,8 @@ func (s *UserService) IsIdUnique(id string) bool {
 
 func (s *UserService) UpdateUsernameByMail(userName, userEmail string) error {
 	return s.UserRepository.UpdateUsernameByMail(userName, userEmail)
+}
+
+func (s *UserService) UpdateUserPhotoByMail(userPhoto, userEmail string) error {
+	return s.UserRepository.UpdateUserPhotoByMail(userPhoto, userEmail)
 }

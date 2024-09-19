@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/gob"
 	"log"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
@@ -16,10 +18,15 @@ import (
 
 var userSockets = make(map[string]string)
 
+func init() {
+	// gob ile time.Time kaydediyoruz
+	gob.Register(time.Time{})
+}
 func main() {
 	config.LoadEnv()
 	router := gin.New()
 	config.PostgreConnection()
+	config.InitS3()
 	io := socket.NewServer(nil, nil)
 	store := config.RedisSession()
 	router.Use(sessions.Sessions("connect.sid", store))
@@ -32,9 +39,11 @@ func main() {
 		AllowCredentials: true,
 	}))
 
+	s3Service := &service.S3Service{}
+
 	userRepository := &repository.UserRepository{DB: config.DB}
 	userService := &service.UserService{UserRepository: userRepository}
-	userController := &controller.UserController{UserService: userService}
+	userController := &controller.UserController{UserService: userService, S3Service: s3Service}
 
 	authController := &controller.AuthController{UserService: userService}
 

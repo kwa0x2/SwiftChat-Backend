@@ -12,6 +12,9 @@ CREATE TYPE public.request_status AS ENUM
 CREATE TYPE public.room_type AS ENUM
     ('private', 'group');
 
+CREATE TYPE public.role_type AS ENUM
+    ('standard', 'high');
+
 CREATE TABLE IF NOT EXISTS public."ROLE"
 (
     role_name character varying(10) COLLATE pg_catalog."default" NOT NULL,
@@ -24,7 +27,7 @@ CREATE TABLE IF NOT EXISTS public."USER"
     user_email character varying(50) COLLATE pg_catalog."default" NOT NULL,
     user_name character varying(10) COLLATE pg_catalog."default" NOT NULL,
     user_photo character varying COLLATE pg_catalog."default",
-    user_role character varying(10) COLLATE pg_catalog."default" NOT NULL DEFAULT 'standard'::character varying,
+    user_role role_type NOT NULL DEFAULT 'standard'::role_type,
     "createdAt" timestamp without time zone NOT NULL,
     "updatedAt" timestamp without time zone NOT NULL,
     "deletedAt" timestamp without time zone,
