@@ -25,7 +25,9 @@ func UserRoute(router *gin.Engine, userController *controller.UserController) {
 	userRoutes := router.Group("/api/v1/user")
 	userRoutes.Use(middlewares.SessionMiddleware())
 	{
-		userRoutes.PATCH("username", userController.Update)
+		userRoutes.PATCH("username", userController.UpdateUsername)
+		userRoutes.POST("upload-profile-picture", userController.UploadProfilePicture)
+
 	}
 }
 

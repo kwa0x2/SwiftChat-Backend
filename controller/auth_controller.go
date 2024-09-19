@@ -65,14 +65,17 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 	// id unique degilse
 	if !ctrl.UserService.IsIdUnique(userData["id"].(string)) {
 
-		username := ctrl.UserService.GetUsernameById(userData["id"].(string))
-
+		user, err := ctrl.UserService.GetUserById(userData["id"].(string))
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+			return
+		}
 		session := sessions.Default(ctx)
 		session.Set("id", userData["id"].(string))
-		session.Set("name", username)
+		session.Set("name", user.UserName)
 		session.Set("mail", userData["email"].(string))
-		session.Set("photo", userData["picture"].(string))
-		session.Set("role", "user")
+		session.Set("photo", user.UserPhoto)
+		session.Set("role", user.UserRole)
 		session.Save()
 		fmt.Println(session.ID())
 

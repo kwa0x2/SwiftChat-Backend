@@ -49,11 +49,13 @@ func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 
 //endregion
 
-// region GET USERNAME BY ID SERVICE
-func (r *UserRepository) GetUsernameById(id string) string {
-	var username string
-	r.DB.Table("USER").Select("user_name").Where("user_id = ?", id).Scan(&username)
-	return username
+// region GET USER BY ID SERVICE
+func (r *UserRepository) GetUserById(id string) (*models.User, error) {
+	var user *models.User
+	if err := r.DB.Table("USER").Where("user_id = ?", id).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 //endregion
@@ -69,6 +71,13 @@ func (r *UserRepository) IsIdUnique(id string) bool {
 
 func (r *UserRepository) UpdateUsernameByMail(userName, userEmail string) error {
 	if err := r.DB.Model(&models.User{}).Where("user_email = ?", userEmail).Update("user_name", userName).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *UserRepository) UpdateUserPhotoByMail(userPhoto, userEmail string) error {
+	if err := r.DB.Model(&models.User{}).Where("user_email = ?", userEmail).Update("user_photo", userPhoto).Error; err != nil {
 		return err
 	}
 	return nil
