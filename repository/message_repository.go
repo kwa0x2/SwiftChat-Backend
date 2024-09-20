@@ -35,9 +35,30 @@ func (r *MessageRepository) GetPrivateConversation(senderId, receiverId string) 
 
 func (r *MessageRepository) GetMessageHistoryByRoomID(roomId string) ([]*models.Message, error) {
 	var messages []*models.Message
-	if err := r.DB.Where("room_id = ?", roomId).Order("\"createdAt\" ASC").Find(&messages).Error; err != nil {
+	if err := r.DB.Unscoped().
+		Select(`
+			message_id, 
+			sender_id, 
+			room_id, 
+			message_status, 
+			"createdAt", 
+			"updatedAt",
+			"deletedAt",
+			CASE WHEN "deletedAt" IS NOT NULL THEN '' ELSE message END as message
+		`).
+		Where("room_id = ?", roomId).
+		Order(`"createdAt" ASC`).
+		Find(&messages).Error; err != nil {
 		return nil, err
 	}
 
 	return messages, nil
+}
+
+func (r *MessageRepository) DeleteById(messageId string) error {
+	return r.DB.Delete(&models.Message{}, "message_id = ?", messageId).Error
+}
+
+func (r *MessageRepository) UpdateMessageByIdBody(messageId, message string) error {
+	return r.DB.Model(&models.Message{}).Where("message_id = ?", messageId).Update("message", message).Error
 }
