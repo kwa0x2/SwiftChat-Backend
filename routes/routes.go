@@ -33,10 +33,12 @@ func UserRoute(router *gin.Engine, userController *controller.UserController) {
 
 func MessageRoute(router *gin.Engine, messageController *controller.MessageController) {
 	messageRoutes := router.Group("/api/v1/message")
-	//messageRoutes.Use(middlewares.SessionMiddleware())
+	messageRoutes.Use(middlewares.SessionMiddleware())
 	{
 		messageRoutes.POST("conversation/private", messageController.GetPrivateConversation)
 		messageRoutes.POST("history", messageController.GetMessageHistory)
+		messageRoutes.DELETE(":messageId", messageController.DeleteById)
+		messageRoutes.PATCH("", messageController.UpdateMessageByIdBody)
 	}
 }
 

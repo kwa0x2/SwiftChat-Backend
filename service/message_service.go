@@ -51,3 +51,11 @@ func (s *MessageService) InsertAndUpdateRoom(message *models.Message) (*models.M
 func (s *MessageService) GetMessageHistoryByRoomID(roomId string) ([]*models.Message, error) {
 	return s.MessageRepository.GetMessageHistoryByRoomID(roomId)
 }
+
+func (s *MessageService) DeleteById(messageId string) error {
+	return s.MessageRepository.DeleteById(messageId)
+}
+
+func (s *MessageService) UpdateMessageByIdBody(messageId, message string) error {
+	return s.MessageRepository.UpdateMessageByIdBody(messageId, message)
+}

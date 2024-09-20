@@ -54,3 +54,39 @@ func (ctrl *MessageController) GetMessageHistory(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, data)
 }
+
+func (ctrl *MessageController) DeleteById(ctx *gin.Context) {
+	messageId := ctx.Param("messageId")
+	if messageId == "" {
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", "messageId is required"))
+		return
+	}
+
+	if err := ctrl.MessageService.DeleteById(messageId); err != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "error"))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, utils.NewSuccessResponse(http.StatusFound, "Found", "delete successfully"))
+}
+
+type UpdateByIdBody struct {
+	MessageID string `json:"message_id"`
+	Message   string `json:"message"`
+}
+
+func (ctrl *MessageController) UpdateMessageByIdBody(ctx *gin.Context) {
+	var updateByIdBody UpdateByIdBody
+
+	if err := ctx.BindJSON(&updateByIdBody); err != nil {
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
+		return
+	}
+
+	if err := ctrl.MessageService.UpdateMessageByIdBody(updateByIdBody.MessageID, updateByIdBody.Message); err != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "error"))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, utils.NewSuccessResponse(http.StatusFound, "Found", "delete successfully"))
+}
