@@ -53,11 +53,10 @@ func (ctrl *UserController) UploadProfilePicture(ctx *gin.Context) {
 		return
 	}
 	defer file.Close()
-	session := sessions.Default(ctx)
 
-	userMail := session.Get("mail")
-	if userMail == nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", "UserId not found"))
+	userMail, exists := ctx.Get("mail")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization required"))
 		return
 	}
 
@@ -68,12 +67,15 @@ func (ctrl *UserController) UploadProfilePicture(ctx *gin.Context) {
 	}
 
 	if err := ctrl.UserService.UpdateUserPhotoByMail(fileURL, userMail.(string)); err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Bad Request", err.Error()))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
 		return
 	}
 
-	session.Set("photo", fileURL)
-	session.Save()
+	session := sessions.Default(ctx)
+	if session.Get("mail") != nil {
+		session.Set("photo", fileURL)
+		session.Save()
+	}
 
-	ctx.JSON(http.StatusOK, utils.NewSuccessResponse(http.StatusOK, "OK", "File uploaded successfully"))
+	ctx.JSON(http.StatusOK, fileURL)
 }

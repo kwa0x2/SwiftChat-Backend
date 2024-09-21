@@ -61,7 +61,6 @@ func (adapter *SocketAdapter) HandleConnection() {
 			}
 
 			adapter.SendMessage(&messageObj, connectedUserMail, data["other_user_email"].(string))
-
 		})
 
 		socketio.On("sendFriend", func(emailData ...any) {
@@ -77,6 +76,26 @@ func (adapter *SocketAdapter) HandleConnection() {
 			}
 
 			adapter.SendFriend(&requestObj, receiverMail)
+		})
+
+		socketio.On("deleteMessage", func(args ...any) {
+			data, ok := args[0].(map[string]interface{}) // message id, other_user_email ve room id
+			if !ok {
+				utils.Log().Error(`socket message type error socketid: %s`, socketio.Id())
+				return
+			}
+
+			adapter.DeleteMessage(data["other_user_email"].(string), data["room_id"].(string), data["message_id"].(string))
+		})
+
+		socketio.On("editMessage", func(args ...any) {
+			data, ok := args[0].(map[string]interface{}) // message id,new message,  other_user_email ve room id
+			if !ok {
+				utils.Log().Error(`socket message type error socketid: %s`, socketio.Id())
+				return
+			}
+
+			adapter.EditMessage(data["other_user_email"].(string), data["room_id"].(string), data["message_id"].(string), data["edited_message"].(string))
 		})
 
 	})
@@ -105,7 +124,7 @@ func (adapter *SocketAdapter) SendMessage(messageObj *models.Message, senderMail
 	}
 
 	utils.Log().Info("Added and sended message %+v\n", addedMessageData)
-	adapter.gateway.Emit(messageObj.RoomID.String(), addedMessageData)
+	adapter.EmitToRoomId("new_message", messageObj.RoomID.String(), addedMessageData)
 
 	notifyData := map[string]interface{}{
 		"room_id":   addedMessageData.RoomID,
@@ -114,7 +133,7 @@ func (adapter *SocketAdapter) SendMessage(messageObj *models.Message, senderMail
 		"updatedAt": addedMessageData.UpdatedAt,
 	}
 
-	adapter.SendNotification("message", receiverMail, notifyData)
+	adapter.EmitToNotificationRoom("new_message", receiverMail, notifyData)
 }
 
 func (adapter *SocketAdapter) SendFriend(request *models.Request, receiverMail string) {
@@ -125,17 +144,64 @@ func (adapter *SocketAdapter) SendFriend(request *models.Request, receiverMail s
 	}
 
 	utils.Log().Info("successfully send friend request %s %+v\n", receiverMail, data)
-	adapter.SendNotification("friend_request", receiverMail, data)
+	adapter.EmitToNotificationRoom("friend_request", receiverMail, data)
 
 }
 
-func (adapter *SocketAdapter) SendNotification(notifyType, receiverMail string, notifyObj any) {
+func (adapter *SocketAdapter) EmitToNotificationRoom(notifyAction, receiverMail string, notifyObj any) {
 	data := map[string]interface{}{
-		"notification_type": notifyType,
-		"data":              notifyObj,
+		"action": notifyAction,
+		"data":   notifyObj,
 	}
 
 	utils.Log().Info("notify %+v\n mail:%s", data, receiverMail)
 
 	adapter.gateway.EmitRoom("notification", receiverMail, data)
+}
+
+func (adapter *SocketAdapter) EmitToRoomId(notifyAction, roomId string, notifyObj any) {
+	data := map[string]interface{}{
+		"action": notifyAction,
+		"data":   notifyObj,
+	}
+
+	utils.Log().Info("notify %+v\n roomId:%s", data, roomId)
+
+	adapter.gateway.Emit(roomId, data)
+}
+
+func (adapter *SocketAdapter) DeleteMessage(connectedUserMail, roomId, messageId string) {
+	if err := adapter.messageService.DeleteById(messageId); err != nil {
+		utils.Log().Error(`error while deleting message `)
+		return
+	}
+
+	utils.Log().Info("deleted message %+v\n", messageId)
+
+	adapter.EmitToRoomId("delete_message", roomId, messageId)
+
+	notifyData := map[string]interface{}{
+		"room_id":    roomId,
+		"message_id": messageId,
+	}
+
+	adapter.EmitToNotificationRoom("delete_message", connectedUserMail, notifyData)
+}
+
+func (adapter *SocketAdapter) EditMessage(connectedUserMail, roomId, messageId, editedMessage string) {
+	if err := adapter.messageService.UpdateMessageByIdBody(messageId, editedMessage); err != nil {
+		utils.Log().Error(`error while editing message `)
+		return
+	}
+
+	utils.Log().Info("edited message %+v\n", messageId)
+
+	notifyData := map[string]interface{}{
+		"message_id":     messageId,
+		"edited_message": editedMessage,
+	}
+
+	adapter.EmitToRoomId("edit_message", roomId, notifyData)
+
+	adapter.EmitToNotificationRoom("edit_message", connectedUserMail, notifyData)
 }

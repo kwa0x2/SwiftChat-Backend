@@ -23,10 +23,9 @@ func AuthRoute(router *gin.Engine, authController *controller.AuthController) {
 
 func UserRoute(router *gin.Engine, userController *controller.UserController) {
 	userRoutes := router.Group("/api/v1/user")
-	userRoutes.Use(middlewares.SessionMiddleware())
 	{
-		userRoutes.PATCH("username", userController.UpdateUsername)
-		userRoutes.POST("upload-profile-picture", userController.UploadProfilePicture)
+		userRoutes.PATCH("username", middlewares.SessionMiddleware(), userController.UpdateUsername)
+		userRoutes.POST("upload-profile-picture", middlewares.CombinedAuthMiddleware(), userController.UploadProfilePicture)
 
 	}
 }
