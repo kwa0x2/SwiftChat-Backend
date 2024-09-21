@@ -51,3 +51,35 @@ func SessionMiddleware() gin.HandlerFunc {
 		return
 	}
 }
+
+func CombinedAuthMiddleware() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		session := sessions.Default(ctx)
+		sessionMail := session.Get("mail")
+		token := ctx.GetHeader("Authorization")
+
+		// ğer session varsa
+		if sessionMail != nil {
+			session.Set("Expires", time.Now().Add(24*time.Hour))
+			session.Save()
+			ctx.Set("mail", sessionMail.(string)) // sessiondaki maili contexte atar
+			ctx.Next()
+			return
+		}
+
+		// session yoksa jwt kontrolu
+		if token != "" {
+			err := utils.VerifyToken(token)
+			if err == nil {
+				claims, _ := utils.GetClaims(token)
+				ctx.Set("mail", claims["user_email"].(string)) // jwtden gelen maili contexte atmak icin
+				ctx.Next()
+				return
+			}
+		}
+
+		// ikiside yoksa
+		ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization failed"))
+		ctx.Abort()
+	}
+}

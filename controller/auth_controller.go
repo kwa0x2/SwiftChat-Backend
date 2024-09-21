@@ -123,7 +123,8 @@ func (ctrl *AuthController) Logout(ctx *gin.Context) {
 }
 
 type SignUpBody struct {
-	Username string `json:"username"`
+	Username  string `json:"user_name"`
+	UserPhoto string `json:"user_photo"`
 }
 
 func (ctrl *AuthController) SignUp(ctx *gin.Context) {
@@ -143,14 +144,14 @@ func (ctrl *AuthController) SignUp(ctx *gin.Context) {
 		UserID:    claims["id"].(string),
 		UserEmail: claims["user_email"].(string),
 		UserName:  signUpBody.Username,
-		UserPhoto: claims["user_photo"].(string),
+		UserPhoto: signUpBody.UserPhoto,
 	}
 
 	session := sessions.Default(ctx)
 	session.Set("id", claims["id"].(string))
-	session.Set("name", claims["user_name"].(string))
+	session.Set("name", signUpBody.Username)
 	session.Set("mail", claims["user_email"].(string))
-	session.Set("photo", claims["user_photo"].(string))
+	session.Set("photo", signUpBody.UserPhoto)
 	session.Set("role", "user")
 	session.Save()
 
