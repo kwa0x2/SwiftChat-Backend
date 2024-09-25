@@ -2,11 +2,11 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/kwa0x2/realtime-chat-backend/adapter"
 	"github.com/kwa0x2/realtime-chat-backend/controller"
-	"github.com/kwa0x2/realtime-chat-backend/gateway"
 	"github.com/kwa0x2/realtime-chat-backend/middlewares"
 	"github.com/kwa0x2/realtime-chat-backend/service"
+	"github.com/kwa0x2/realtime-chat-backend/socket/adapter"
+	"github.com/kwa0x2/realtime-chat-backend/socket/gateway"
 	"github.com/zishang520/socket.io/socket"
 )
 
@@ -68,9 +68,9 @@ func RoomRoute(router *gin.Engine, roomController *controller.RoomController) {
 	}
 }
 
-func SetupSocketIO(router *gin.Engine, io *socket.Server, messageService *service.MessageService, userService *service.UserService, friendService *service.FriendService, requestService *service.RequestService) {
+func SetupSocketIO(router *gin.Engine, io *socket.Server, messageService *service.MessageService, userService *service.UserService, friendService *service.FriendService, requestService *service.RequestService, resendService *service.ResendService) {
 	socketGateway := gateway.NewSocketGateway(io)
-	socketAdapter := adapter.NewSocketAdapter(socketGateway, messageService, userService, friendService, requestService)
+	socketAdapter := adapter.NewSocketAdapter(socketGateway, messageService, userService, friendService, requestService, resendService)
 
 	socketAdapter.HandleConnection()
 

@@ -56,7 +56,9 @@ func (r *RoomRepository) GetChatList(userId string) ([]*ChatList, error) {
 		Joins(`LEFT JOIN "USER_ROOM" ur2 ON "ROOM".room_id = ur2.room_id AND ur2.user_id != ?`, userId).
 		Joins(`LEFT JOIN "USER" ON ur2.user_id = "USER".user_id`).
 		Joins(`LEFT JOIN "FRIEND" ON "USER".user_email = "FRIEND".user_mail`).
+		Joins(`LEFT JOIN "MESSAGE" ON "ROOM".room_id = "MESSAGE".room_id`).
 		Where(`"USER_ROOM".user_id = ?`, userId).
+		Where(`"MESSAGE".room_id IS NOT NULL`).
 		Order(`"ROOM"."updatedAt" DESC`).
 		Scan(&chatLists).Error; err != nil {
 		return nil, err

@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"github.com/kwa0x2/realtime-chat-backend/types"
 	"net/http"
 
@@ -95,8 +94,6 @@ func (ctrl *FriendController) Block(ctx *gin.Context) {
 
 	friendObj.UserMail = actionBody.Mail    // blocklanan
 	friendObj.UserMail2 = userMail.(string) // blocklayan
-
-	fmt.Print(actionBody.Mail)
 
 	if err := ctrl.FriendService.Block(&friendObj); err != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))

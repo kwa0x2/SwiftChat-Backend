@@ -17,8 +17,8 @@ func (s *UserService) IsUsernameUnique(username string) bool {
 //endregion
 
 // region IS EMAIL UNIQUE SERVICE
-func (s *UserService) IsEmailUnique(email string) bool {
-	return s.UserRepository.IsEmailUnique(email)
+func (s *UserService) IsEmailExists(email string) bool {
+	return s.UserRepository.IsEmailExists(email)
 }
 
 //endregion

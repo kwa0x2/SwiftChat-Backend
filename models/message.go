@@ -14,8 +14,8 @@ type Message struct {
 	SenderID      string           `json:"sender_id" gorm:"not null"`
 	RoomID        uuid.UUID        `json:"room_id" gorm:"not null;type:uuid"`
 	MessageStatus types.ReadStatus `json:"message_status" gorm:"type:read_status;not null;default:unread"`
-	CreatedAt     time.Time        `json:"createdAt" gorm:"not null;column:createdAt"`
-	UpdatedAt     time.Time        `json:"updatedAt" gorm:"not null;column:updatedAt"`
+	CreatedAt     time.Time        `json:"createdAt" gorm:"not null;column:createdAt;default:CURRENT_TIMESTAMP"`
+	UpdatedAt     time.Time        `json:"updatedAt" gorm:"not null;column:updatedAt;default:CURRENT_TIMESTAMP"`
 	DeletedAt     gorm.DeletedAt   `json:"deletedAt" gorm:"column:deletedAt"`
 }
 

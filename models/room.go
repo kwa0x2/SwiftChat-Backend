@@ -13,8 +13,8 @@ type Room struct {
 	MessageCount  int64          `json:"message_count"`
 	LastMessage   string         `json:"last_message"`
 	RoomType      types.RoomType `json:"room_type" gorm:"not null;type:room_type;default:private"`
-	CreatedAt     time.Time      `json:"createdAt" gorm:"not null;column:createdAt"`
-	UpdatedAt     time.Time      `json:"updatedAt" gorm:"column:updatedAt"`
+	CreatedAt     time.Time      `json:"createdAt" gorm:"not null;column:createdAt;default:CURRENT_TIMESTAMP"`
+	UpdatedAt     time.Time      `json:"updatedAt" gorm:"not null;column:updatedAt;default:CURRENT_TIMESTAMP"`
 	DeletedAt     gorm.DeletedAt `json:"deletedAt" gorm:"column:deletedAt"`
 
 	UserRoom UserRoom `json:"user_room" gorm:"foreignKey:RoomID;references:RoomID"`

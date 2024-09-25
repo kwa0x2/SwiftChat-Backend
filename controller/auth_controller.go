@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/kwa0x2/realtime-chat-backend/models"
 	"time"
 
@@ -77,7 +76,6 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 		session.Set("photo", user.UserPhoto)
 		session.Set("role", user.UserRole)
 		session.Save()
-		fmt.Println(session.ID())
 
 		ctx.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/login")
 		return
@@ -154,8 +152,6 @@ func (ctrl *AuthController) SignUp(ctx *gin.Context) {
 	session.Set("photo", signUpBody.UserPhoto)
 	session.Set("role", "user")
 	session.Save()
-
-	fmt.Println(session.ID())
 
 	if !ctrl.UserService.IsUsernameUnique(signUpBody.Username) {
 		ctx.JSON(http.StatusConflict, utils.NewErrorResponse(http.StatusConflict, "Conflict", "Username must be unique"))
