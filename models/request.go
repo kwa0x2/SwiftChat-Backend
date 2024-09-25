@@ -11,7 +11,7 @@ type Request struct {
 	SenderMail    string              `json:"sender_mail" gorm:"not null"`
 	ReceiverMail  string              `json:"receiver_mail" gorm:"not null"`
 	RequestStatus types.RequestStatus `json:"request_status" gorm:"not null;type:request_status;default:pending"`
-	CreatedAt     time.Time           `json:"createdAt" gorm:"column:createdAt;not null"`
+	CreatedAt     time.Time           `json:"createdAt" gorm:"column:createdAt;not null;default:CURRENT_TIMESTAMP"`
 	DeletedAt     gorm.DeletedAt      `json:"deletedAt" gorm:"column:deletedAt"`
 
 	User User `json:"user" gorm:"foreignKey:SenderMail;references:UserEmail"`

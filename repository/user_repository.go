@@ -19,10 +19,10 @@ func (r *UserRepository) IsUsernameUnique(username string) bool {
 //endregion
 
 // region IS EMAIL UNIQUE REPOSITORY
-func (r *UserRepository) IsEmailUnique(email string) bool {
+func (r *UserRepository) IsEmailExists(email string) bool {
 	var count int64
-	r.DB.Where("user_email = ?", email).Count(&count)
-	return count == 0
+	r.DB.Model(&models.User{}).Where("user_email = ?", email).Count(&count)
+	return count > 0
 }
 
 //endregion

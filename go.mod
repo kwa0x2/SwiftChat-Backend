@@ -1,6 +1,8 @@
 module github.com/kwa0x2/realtime-chat-backend
 
-go 1.22.2
+go 1.23
+
+toolchain go1.23.1
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.30.5
@@ -12,6 +14,8 @@ require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.10.9
+	github.com/resend/resend-go/v2 v2.12.0
 	github.com/zishang520/engine.io v1.5.9
 	golang.org/x/oauth2 v0.19.0
 	gorm.io/driver/postgres v1.5.7

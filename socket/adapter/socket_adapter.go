@@ -1,10 +1,12 @@
 package adapter
 
 import (
+	"errors"
 	"github.com/google/uuid"
-	"github.com/kwa0x2/realtime-chat-backend/gateway"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/kwa0x2/realtime-chat-backend/models"
 	"github.com/kwa0x2/realtime-chat-backend/service"
+	"github.com/kwa0x2/realtime-chat-backend/socket/gateway"
 	"github.com/zishang520/engine.io/utils"
 	"github.com/zishang520/socket.io/socket"
 )
@@ -16,10 +18,11 @@ type SocketAdapter struct {
 	userService    *service.UserService
 	friendService  *service.FriendService
 	requestService *service.RequestService
+	resendService  *service.ResendService
 }
 
-func NewSocketAdapter(gateway gateway.SocketGateway, messageService *service.MessageService, userService *service.UserService, friendService *service.FriendService, requestService *service.RequestService) *SocketAdapter {
-	return &SocketAdapter{gateway: gateway, userSockets: make(map[string]string), messageService: messageService, userService: userService, friendService: friendService, requestService: requestService}
+func NewSocketAdapter(gateway gateway.SocketGateway, messageService *service.MessageService, userService *service.UserService, friendService *service.FriendService, requestService *service.RequestService, resendService *service.ResendService) *SocketAdapter {
+	return &SocketAdapter{gateway: gateway, userSockets: make(map[string]string), messageService: messageService, userService: userService, friendService: friendService, requestService: requestService, resendService: resendService}
 }
 
 func (adapter *SocketAdapter) HandleConnection() {
@@ -60,22 +63,43 @@ func (adapter *SocketAdapter) HandleConnection() {
 				RoomID:   roomID,
 			}
 
-			adapter.SendMessage(&messageObj, connectedUserMail, data["other_user_email"].(string))
+			callback, ok := args[1].(func([]interface{}, error))
+			if !ok {
+				utils.Log().Error(`callback function type error socketid: %s`, socketio.Id())
+				return
+			}
+
+			status := adapter.SendMessage(&messageObj, connectedUserMail, data["other_user_email"].(string))
+
+			response := []interface{}{map[string]interface{}{"status": status}}
+			callback(response, nil)
 		})
 
-		socketio.On("sendFriend", func(emailData ...any) {
-			receiverMail, ok := emailData[0].(string)
+		socketio.On("sendFriend", func(args ...any) {
+
+			receiverMail, ok := args[0].(string)
 			if !ok {
 				utils.Log().Error(`socket message type error socketid: %s`, socketio.Id())
 				return
 			}
 
-			requestObj := models.Request{
-				SenderMail:   connectedUserMail,
-				ReceiverMail: receiverMail,
-			}
+			if receiverMail != connectedUserMail {
+				requestObj := models.Request{
+					SenderMail:   connectedUserMail,
+					ReceiverMail: receiverMail,
+				}
 
-			adapter.SendFriend(&requestObj, receiverMail)
+				callback, ok := args[1].(func([]interface{}, error))
+				if !ok {
+					utils.Log().Error(`callback function type error socketid: %s`, socketio.Id())
+					return
+				}
+
+				status := adapter.SendFriend(&requestObj, receiverMail)
+
+				response := []interface{}{map[string]interface{}{"status": status}}
+				callback(response, nil)
+			}
 		})
 
 		socketio.On("deleteMessage", func(args ...any) {
@@ -106,21 +130,21 @@ func (adapter *SocketAdapter) JoinRoom(socketio *socket.Socket, room string) {
 	utils.Log().Info("User %s joined room %s", socketio.Id(), room)
 }
 
-func (adapter *SocketAdapter) SendMessage(messageObj *models.Message, senderMail, receiverMail string) {
+func (adapter *SocketAdapter) SendMessage(messageObj *models.Message, senderMail, receiverMail string) string {
 	isBlocked, err := adapter.friendService.IsBlocked(senderMail, receiverMail)
 	if err != nil {
 		utils.Log().Error(`error while get blocked status `)
-		return
+		return "error"
 	}
 	if isBlocked != false {
 		utils.Log().Error(`friend is blocked `)
-		return
+		return "error"
 	}
 
 	addedMessageData, messageErr := adapter.messageService.InsertAndUpdateRoom(messageObj)
 	if messageErr != nil {
 		utils.Log().Error(`error while adding message `)
-		return
+		return "error"
 	}
 
 	utils.Log().Info("Added and sended message %+v\n", addedMessageData)
@@ -134,18 +158,39 @@ func (adapter *SocketAdapter) SendMessage(messageObj *models.Message, senderMail
 	}
 
 	adapter.EmitToNotificationRoom("new_message", receiverMail, notifyData)
+	return "success"
 }
 
-func (adapter *SocketAdapter) SendFriend(request *models.Request, receiverMail string) {
-	data, err := adapter.requestService.InsertAndReturnUser(request)
-	if err != nil {
-		utils.Log().Error(`error while sending friend request `)
-		return
+func (adapter *SocketAdapter) SendFriend(request *models.Request, receiverMail string) string {
+	var pgErr *pgconn.PgError
+
+	if isEmailExists := adapter.userService.IsEmailExists(receiverMail); !isEmailExists {
+		if err := adapter.requestService.Insert(nil, request); err != nil {
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				return "duplicate"
+			}
+			return "error"
+		}
+
+		_, err := adapter.resendService.SendMail(receiverMail, "You have received a new friend request from the SwiftChat app!", "friend_request")
+		if err != nil {
+			return "error"
+		}
+
+		return "email_sent"
 	}
 
-	utils.Log().Info("successfully send friend request %s %+v\n", receiverMail, data)
-	adapter.EmitToNotificationRoom("friend_request", receiverMail, data)
+	data, err := adapter.requestService.InsertAndReturnUser(request)
+	if err != nil {
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return "duplicate"
+		}
 
+		return "error"
+	}
+
+	adapter.EmitToNotificationRoom("friend_request", receiverMail, data)
+	return "friend_sent"
 }
 
 func (adapter *SocketAdapter) EmitToNotificationRoom(notifyAction, receiverMail string, notifyObj any) {

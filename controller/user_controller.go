@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/kwa0x2/realtime-chat-backend/service"
@@ -21,7 +20,6 @@ type UsernameUpdateBody struct {
 func (ctrl *UserController) UpdateUsername(ctx *gin.Context) {
 	var requestBody UsernameUpdateBody
 	session := sessions.Default(ctx)
-	fmt.Println("ilk", session.Get("name"))
 
 	if err := ctx.BindJSON(&requestBody); err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
@@ -42,7 +40,6 @@ func (ctrl *UserController) UpdateUsername(ctx *gin.Context) {
 	session.Set("name", requestBody.UserName)
 	session.Save()
 
-	fmt.Println("son", session.Get("name"))
 	ctx.JSON(http.StatusOK, utils.NewSuccessResponse(http.StatusOK, "OK", "success"))
 }
 

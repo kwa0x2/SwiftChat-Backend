@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/gob"
+	"github.com/resend/resend-go/v2"
 	"log"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -30,6 +32,7 @@ func main() {
 	io := socket.NewServer(nil, nil)
 	store := config.RedisSession()
 	router.Use(sessions.Sessions("connect.sid", store))
+	resendClient := resend.NewClient(os.Getenv("RESEND_API_KEY"))
 
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},
@@ -40,6 +43,7 @@ func main() {
 	}))
 
 	s3Service := &service.S3Service{}
+	resendService := &service.ResendService{ResendClient: resendClient}
 
 	userRepository := &repository.UserRepository{DB: config.DB}
 	userService := &service.UserService{UserRepository: userRepository}
@@ -72,7 +76,7 @@ func main() {
 	routes.FriendRoute(router, friendController)
 	routes.RequestRoute(router, requestController)
 	routes.RoomRoute(router, roomController)
-	routes.SetupSocketIO(router, io, messageService, userService, friendService, requestService)
+	routes.SetupSocketIO(router, io, messageService, userService, friendService, requestService, resendService)
 
 	if err := router.Run(":9000"); err != nil {
 		log.Fatal("failed run app: ", err)

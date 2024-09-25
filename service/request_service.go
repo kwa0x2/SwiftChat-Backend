@@ -91,7 +91,7 @@ func (s *RequestService) InsertAndReturnUser(request *models.Request) (map[strin
 		return nil, err
 	}
 
-	userData, err := s.UserService.GetByEmail(request.ReceiverMail)
+	userData, err := s.UserService.GetByEmail(request.SenderMail)
 	if err != nil {
 		tx.Rollback()
 		return nil, err

@@ -11,29 +11,30 @@ import (
 
 var DB *gorm.DB
 
-func PostgreConnection(){
+func PostgreConnection() {
 	dsn := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", os.Getenv("POSTGRE_USER"), os.Getenv("POSTGRE_PASSWORD"), os.Getenv("POSTGRE_HOST"), os.Getenv("POSTGRE_DB"))
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{NowFunc: func() time.Time {
+		return time.Now().UTC()
+	}})
 
-
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 	sqlDb, err := db.DB()
 
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 
 	start := time.Now()
 
-	for sqlDb.Ping() != nil{
+	for sqlDb.Ping() != nil {
 		if start.After(start.Add(10 * time.Second)) {
 			fmt.Println("Failed to connection database after 10 seconds")
 			break
 		}
 	}
 
-	fmt.Println("Connected to database: ",sqlDb.Ping() == nil)
+	fmt.Println("Connected to database: ", sqlDb.Ping() == nil)
 	DB = db
 }
