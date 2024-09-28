@@ -2,11 +2,13 @@ package adapter
 
 import (
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/kwa0x2/realtime-chat-backend/models"
 	"github.com/kwa0x2/realtime-chat-backend/service"
 	"github.com/kwa0x2/realtime-chat-backend/socket/gateway"
+	"github.com/kwa0x2/realtime-chat-backend/types"
 	"github.com/zishang520/engine.io/utils"
 	"github.com/zishang520/socket.io/socket"
 )
@@ -76,6 +78,7 @@ func (adapter *SocketAdapter) HandleConnection() {
 		})
 
 		socketio.On("sendFriend", func(args ...any) {
+			fmt.Println("status2")
 
 			receiverMail, ok := args[0].(string)
 			if !ok {
@@ -96,7 +99,7 @@ func (adapter *SocketAdapter) HandleConnection() {
 				}
 
 				status := adapter.SendFriend(&requestObj, receiverMail)
-
+				fmt.Println("status")
 				response := []interface{}{map[string]interface{}{"status": status}}
 				callback(response, nil)
 			}
@@ -122,6 +125,30 @@ func (adapter *SocketAdapter) HandleConnection() {
 			adapter.EditMessage(data["other_user_email"].(string), data["room_id"].(string), data["message_id"].(string), data["edited_message"].(string))
 		})
 
+		socketio.On("updateFriendshipRequest", func(args ...any) {
+			data, ok := args[0].(map[string]interface{}) // sender mail ve status
+			if !ok {
+				utils.Log().Error(`socket message type error socketid: %s`, socketio.Id())
+				return
+			}
+
+			requestObj := models.Request{
+				SenderMail:    data["sender_mail"].(string),
+				ReceiverMail:  connectedUserMail,
+				RequestStatus: types.RequestStatus(data["status"].(string)),
+			}
+
+			callback, ok := args[1].(func([]interface{}, error))
+			if !ok {
+				utils.Log().Error(`callback function type error socketid: %s`, socketio.Id())
+				return
+			}
+
+			status := adapter.UpdateFriendshipRequest(&requestObj)
+
+			response := []interface{}{map[string]interface{}{"status": status}}
+			callback(response, nil)
+		})
 	})
 }
 
@@ -156,7 +183,7 @@ func (adapter *SocketAdapter) SendMessage(messageObj *models.Message, senderMail
 		"sender_id": addedMessageData.SenderID,
 		"updatedAt": addedMessageData.UpdatedAt,
 	}
-
+	fmt.Println("receiver", receiverMail)
 	adapter.EmitToNotificationRoom("new_message", receiverMail, notifyData)
 	return "success"
 }
@@ -249,4 +276,17 @@ func (adapter *SocketAdapter) EditMessage(connectedUserMail, roomId, messageId, 
 	adapter.EmitToRoomId("edit_message", roomId, notifyData)
 
 	adapter.EmitToNotificationRoom("edit_message", connectedUserMail, notifyData)
+}
+
+func (adapter *SocketAdapter) UpdateFriendshipRequest(request *models.Request) string {
+	data, err := adapter.requestService.UpdateFriendshipRequest(request)
+	if err != nil {
+		utils.Log().Error(`error while editing message `)
+		return "error"
+	}
+
+	utils.Log().Info("update friendship request %s", request)
+
+	adapter.EmitToNotificationRoom("update_friendship_request", request.SenderMail, data)
+	return "success"
 }

@@ -36,17 +36,6 @@ func (ctrl *RequestController) Insert(ctx *gin.Context) {
 		return
 	}
 
-	// user, err := ctrl.UserService.GetByEmail(requestBody.Mail)
-	// if errors.Is(err, gorm.ErrRecordNotFound) {
-	// 	ctx.JSON(http.StatusOK, utils.NewErrorResponse(http.StatusOK, "OK", "sent mail"))
-	// 	return
-	// }
-
-	// if err != nil {
-	// 	ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
-	// 	return
-	// }
-
 	var requestObj models.Request
 
 	requestObj.SenderMail = userMail.(string)
@@ -89,31 +78,31 @@ func (ctrl *RequestController) GetComingRequests(ctx *gin.Context) {
 }
 
 func (ctrl *RequestController) PatchUpdateRequest(ctx *gin.Context) {
-	var requestBody ActionBody
-	session := sessions.Default(ctx)
-
-	if err := ctx.BindJSON(&requestBody); err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
-		return
-	}
-
-	userMail := session.Get("mail")
-	if userMail == nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", "UserId not found"))
-		return
-	}
-
-	var requestObj models.Request
-
-	requestObj.SenderMail = requestBody.Mail
-	requestObj.ReceiverMail = userMail.(string)
-	requestObj.RequestStatus = requestBody.Status
-
-	success, err := ctrl.RequestService.UpdateFriendshipRequest(&requestObj)
-	if err != nil || !success {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Bad Request", err.Error()))
-		return
-	}
-
-	ctx.JSON(http.StatusOK, utils.NewSuccessResponse(http.StatusOK, "OK", "success"))
+	//	var requestBody ActionBody
+	//	session := sessions.Default(ctx)
+	//
+	//	if err := ctx.BindJSON(&requestBody); err != nil {
+	//		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
+	//		return
+	//	}
+	//
+	//	userMail := session.Get("mail")
+	//	if userMail == nil {
+	//		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", "UserId not found"))
+	//		return
+	//	}
+	//
+	//	var requestObj models.Request
+	//
+	//	requestObj.SenderMail = requestBody.Mail
+	//	requestObj.ReceiverMail = userMail.(string)
+	//	requestObj.RequestStatus = requestBody.Status
+	//
+	//	data, err := ctrl.RequestService.UpdateFriendshipRequest(&requestObj)
+	//	if err != nil {
+	//		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Bad Request", err.Error()))
+	//		return
+	//	}
+	//
+	//	ctx.JSON(http.StatusOK, utils.NewSuccessResponse(http.StatusOK, "OK", "success"))
 }

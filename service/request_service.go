@@ -41,22 +41,29 @@ func (s *RequestService) Delete(tx *gorm.DB, request *models.Request) error {
 //endregion
 
 // region UPDATE REQUEST STATUS and DELETE AND IF STATUS ACCEPTED INSERT NEW FRIENDSHIP IN FRIEND WITH TRANSACTION SERVICE
-func (s *RequestService) UpdateFriendshipRequest(request *models.Request) (bool, error) {
+func (s *RequestService) UpdateFriendshipRequest(request *models.Request) (map[string]interface{}, error) {
 	tx := s.RequestRepository.DB.Begin()
 	if tx.Error != nil {
-		return false, tx.Error
+		return nil, tx.Error
 	}
 
 	if err := s.Update(tx, request); err != nil {
 		tx.Rollback()
-		return false, err
+		return nil, err
 	}
 
 	if err := s.Delete(tx, request); err != nil {
 		tx.Rollback()
-		return false, err
+		return nil, err
 	}
 
+	userData, err := s.UserService.GetByEmail(request.ReceiverMail)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	var result map[string]interface{}
 	if request.RequestStatus == "accepted" {
 		friend := &models.Friend{
 			UserMail:     request.SenderMail,
@@ -66,16 +73,33 @@ func (s *RequestService) UpdateFriendshipRequest(request *models.Request) (bool,
 
 		if err := s.FriendService.Insert(tx, friend); err != nil {
 			tx.Rollback()
-			return false, err
+			return nil, err
+		}
+
+		result = map[string]interface{}{
+			"status": "accepted",
+			"user_data": map[string]interface{}{
+				"friend_mail": request.ReceiverMail,
+				"user_name":   userData.UserName,
+				"user_photo":  userData.UserPhoto,
+			},
+		}
+
+	} else {
+		result = map[string]interface{}{
+			"status": request.RequestStatus,
+			"user_data": map[string]interface{}{
+				"user_name": userData.UserName,
+			},
 		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		return false, err
+		return nil, err
 	}
 
-	return true, nil
+	return result, nil
 }
 
 //endregion
