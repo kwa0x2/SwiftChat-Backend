@@ -46,8 +46,6 @@ func FriendRoute(router *gin.Engine, friendController *controller.FriendControll
 	{
 		friendRoutes.GET("", friendController.GetFriends) // get all
 		friendRoutes.GET("blocked", friendController.GetBlocked)
-		friendRoutes.PATCH("block", friendController.Block)
-		friendRoutes.DELETE("", friendController.Delete)
 	}
 }
 
@@ -56,7 +54,6 @@ func RequestRoute(router *gin.Engine, requestController *controller.RequestContr
 	{
 		requestRoutes.POST("", requestController.Insert)           // send friend req
 		requestRoutes.GET("", requestController.GetComingRequests) // get coming req
-		requestRoutes.PATCH("", requestController.PatchUpdateRequest)
 	}
 }
 

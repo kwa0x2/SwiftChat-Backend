@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/kwa0x2/realtime-chat-backend/types"
 	"net/http"
 
 	"github.com/gin-contrib/sessions"
@@ -14,6 +15,11 @@ type RequestController struct {
 	RequestService *service.RequestService
 	FriendService  *service.FriendService
 	UserService    *service.UserService
+}
+
+type ActionBody struct {
+	Mail   string              `json:"mail"`
+	Status types.RequestStatus `json:"status"`
 }
 
 func (ctrl *RequestController) Insert(ctx *gin.Context) {
@@ -75,34 +81,4 @@ func (ctrl *RequestController) GetComingRequests(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, responseData)
-}
-
-func (ctrl *RequestController) PatchUpdateRequest(ctx *gin.Context) {
-	//	var requestBody ActionBody
-	//	session := sessions.Default(ctx)
-	//
-	//	if err := ctx.BindJSON(&requestBody); err != nil {
-	//		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
-	//		return
-	//	}
-	//
-	//	userMail := session.Get("mail")
-	//	if userMail == nil {
-	//		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", "UserId not found"))
-	//		return
-	//	}
-	//
-	//	var requestObj models.Request
-	//
-	//	requestObj.SenderMail = requestBody.Mail
-	//	requestObj.ReceiverMail = userMail.(string)
-	//	requestObj.RequestStatus = requestBody.Status
-	//
-	//	data, err := ctrl.RequestService.UpdateFriendshipRequest(&requestObj)
-	//	if err != nil {
-	//		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Bad Request", err.Error()))
-	//		return
-	//	}
-	//
-	//	ctx.JSON(http.StatusOK, utils.NewSuccessResponse(http.StatusOK, "OK", "success"))
 }

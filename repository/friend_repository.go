@@ -1,7 +1,9 @@
 package repository
 
 import (
+	"errors"
 	"github.com/kwa0x2/realtime-chat-backend/models"
+	"github.com/kwa0x2/realtime-chat-backend/types"
 	"gorm.io/gorm"
 )
 
@@ -24,6 +26,50 @@ func (r *FriendRepository) Insert(tx *gorm.DB, friend *models.Friend) error {
 
 //endregion
 
+func (r *FriendRepository) Update(tx *gorm.DB, filter map[string]interface{}, updates map[string]interface{}) error {
+	db := r.DB
+	if tx != nil {
+		db = tx
+	}
+
+	result := db.Model(&models.Friend{}).Debug().Unscoped().Where(filter).Updates(updates)
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r *FriendRepository) UpdateDeletedAtByMail(tx *gorm.DB, userMail, userMail2 string, friendStatus types.FriendStatus) error {
+	db := r.DB
+	if tx != nil {
+		db = tx
+	}
+
+	result := db.Model(&models.Friend{}).Debug().Unscoped().
+		Where("(user_mail = ? OR user_mail2 = ?)", userMail, userMail2).
+		Or("(user_mail2 = ? OR user_mail = ?)", userMail, userMail2).
+		Updates(map[string]interface{}{
+			"friend_status": friendStatus,
+			"deletedAt":     nil,
+		})
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
 // region DELETE FRIEND BY MAIL REPOSITORY
 func (r *FriendRepository) Delete(friend *models.Friend) error {
 	if err := r.DB.
@@ -44,7 +90,7 @@ func (r *FriendRepository) Delete(friend *models.Friend) error {
 func (r *FriendRepository) GetFriends(userMail string) ([]*models.Friend, error) {
 	var friends []*models.Friend
 
-	if err := r.DB.
+	if err := r.DB.Debug().
 		Preload("User").
 		Select("CASE WHEN user_mail = ? THEN user_mail2 ELSE user_mail END as user_mail", userMail).
 		Where("user_mail = ? AND friend_status = ?", userMail, "friend").
@@ -57,6 +103,23 @@ func (r *FriendRepository) GetFriends(userMail string) ([]*models.Friend, error)
 }
 
 //endregion
+
+func (r *FriendRepository) GetFriend(userMail, userMail2 string) (*models.Friend, error) {
+	var friend *models.Friend
+
+	if err := r.DB.Debug().Unscoped().
+		Select("CASE WHEN user_mail = ? THEN user_mail2 ELSE user_mail END as user_mail", userMail).
+		Where("(user_mail = ? OR user_mail2 = ?)", userMail, userMail2).
+		Or("(user_mail2 = ? OR user_mail = ?)", userMail, userMail2).
+		First(&friend).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return friend, nil
+}
 
 // region GET BLOCKED FRIENDS BY MAIL SERVICE
 func (r *FriendRepository) GetBlocked(userMail string) ([]*models.Friend, error) {
@@ -77,13 +140,13 @@ func (r *FriendRepository) GetBlocked(userMail string) ([]*models.Friend, error)
 //endregion
 
 // region BLOCK FRIEND BY MAIL SERVICE
-func (r *FriendRepository) Block(friend *models.Friend) error {
+func (r *FriendRepository) Block(friend *models.Friend) (string, error) {
 	var existingFriend models.Friend
 
 	if err := r.DB.
 		Where("(user_mail = ? AND user_mail2 = ?) OR (user_mail = ? AND user_mail2 = ?)", friend.UserMail, friend.UserMail2, friend.UserMail2, friend.UserMail).
 		First(&existingFriend).Error; err != nil {
-		return err
+		return "", err
 
 	}
 
@@ -104,7 +167,11 @@ func (r *FriendRepository) Block(friend *models.Friend) error {
 		}
 	}
 
-	return r.DB.Save(&existingFriend).Error
+	if err := r.DB.Save(&existingFriend).Error; err != nil {
+		return "", err
+	}
+
+	return string(existingFriend.FriendStatus), nil
 }
 
 //endregion

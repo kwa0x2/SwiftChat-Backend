@@ -14,6 +14,7 @@ type RequestService struct {
 
 // region INSERT NEW REQUEST SERVICE
 func (s *RequestService) Insert(tx *gorm.DB, request *models.Request) error {
+
 	return s.RequestRepository.Insert(tx, request)
 }
 
@@ -27,8 +28,9 @@ func (s *RequestService) GetComingRequests(receiverMail string) ([]*models.Reque
 //endregion
 
 // region UPDATE BY MAIL SERVICE
-func (s *RequestService) Update(tx *gorm.DB, request *models.Request) error {
-	return s.RequestRepository.Update(tx, request)
+func (s *RequestService) Update(tx *gorm.DB, filter map[string]interface{}, updates map[string]interface{}) error {
+
+	return s.RequestRepository.Update(tx, filter, updates)
 }
 
 //endregion
@@ -47,7 +49,16 @@ func (s *RequestService) UpdateFriendshipRequest(request *models.Request) (map[s
 		return nil, tx.Error
 	}
 
-	if err := s.Update(tx, request); err != nil {
+	filter := map[string]interface{}{
+		"receiver_mail": request.ReceiverMail,
+		"sender_mail":   request.SenderMail,
+	}
+
+	updates := map[string]interface{}{
+		"request_status": request.RequestStatus,
+	}
+
+	if err := s.Update(tx, filter, updates); err != nil {
 		tx.Rollback()
 		return nil, err
 	}

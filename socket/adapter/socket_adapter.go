@@ -125,6 +125,54 @@ func (adapter *SocketAdapter) HandleConnection() {
 			adapter.EditMessage(data["other_user_email"].(string), data["room_id"].(string), data["message_id"].(string), data["edited_message"].(string))
 		})
 
+		socketio.On("blockFriend", func(args ...any) {
+			data, ok := args[0].(map[string]interface{}) // friend_mail, friend_name
+			if !ok {
+				utils.Log().Error(`socket message type error socketid: %s`, socketio.Id())
+				return
+			}
+
+			friendObj := models.Friend{
+				UserMail:  data["friend_mail"].(string),
+				UserMail2: connectedUserMail,
+			}
+
+			callback, ok := args[1].(func([]interface{}, error))
+			if !ok {
+				utils.Log().Error(`callback function type error socketid: %s`, socketio.Id())
+				return
+			}
+
+			responseData := adapter.BlockFriend(&friendObj, data["friend_name"].(string))
+
+			response := []interface{}{responseData}
+			callback(response, nil)
+		})
+
+		socketio.On("deleteFriend", func(args ...any) {
+			data, ok := args[0].(map[string]interface{}) // user_mail, user_name
+			if !ok {
+				utils.Log().Error(`socket message type error socketid: %s`, socketio.Id())
+				return
+			}
+
+			friendObj := models.Friend{
+				UserMail:  data["user_mail"].(string),
+				UserMail2: connectedUserMail,
+			}
+
+			callback, ok := args[1].(func([]interface{}, error))
+			if !ok {
+				utils.Log().Error(`callback function type error socketid: %s`, socketio.Id())
+				return
+			}
+
+			status := adapter.DeleteFriend(&friendObj, data["user_name"].(string))
+
+			response := []interface{}{map[string]interface{}{"status": status}}
+			callback(response, nil)
+		})
+
 		socketio.On("updateFriendshipRequest", func(args ...any) {
 			data, ok := args[0].(map[string]interface{}) // sender mail ve status
 			if !ok {
@@ -288,5 +336,49 @@ func (adapter *SocketAdapter) UpdateFriendshipRequest(request *models.Request) s
 	utils.Log().Info("update friendship request %s", request)
 
 	adapter.EmitToNotificationRoom("update_friendship_request", request.SenderMail, data)
+	return "success"
+}
+
+func (adapter *SocketAdapter) BlockFriend(friend *models.Friend, friendName string) map[string]interface{} {
+	friendObj := map[string]interface{}{
+		"status":        "",
+		"friend_status": "",
+	}
+
+	friendStatus, err := adapter.friendService.Block(friend)
+	if err != nil {
+		utils.Log().Error(`error while editing message `)
+		friendObj["status"] = "error"
+		return friendObj
+	}
+
+	data := map[string]interface{}{
+		"friend_name":   friendName,
+		"friend_mail":   friend.UserMail2,
+		"friend_status": friendStatus,
+	}
+
+	utils.Log().Info("blocked user %s", friend)
+
+	adapter.EmitToNotificationRoom("blocked_friend", friend.UserMail, data)
+	friendObj["status"] = "success"
+	friendObj["friend_status"] = friendStatus
+
+	return friendObj
+}
+
+func (adapter *SocketAdapter) DeleteFriend(friend *models.Friend, userName string) string {
+	if err := adapter.friendService.Delete(friend); err != nil {
+		utils.Log().Error(`error while editing message `)
+		return "error"
+	}
+
+	data := map[string]interface{}{
+		"user_email": friend.UserMail2,
+	}
+
+	utils.Log().Info("deleted friend %s", friend)
+
+	adapter.EmitToNotificationRoom("deleted_friend", friend.UserMail, data)
 	return "success"
 }
