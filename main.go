@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/gob"
+	"github.com/kwa0x2/realtime-chat-backend/socket/adapter"
+	"github.com/kwa0x2/realtime-chat-backend/socket/gateway"
 	"github.com/resend/resend-go/v2"
 	"log"
 	"os"
@@ -18,10 +20,7 @@ import (
 	"github.com/zishang520/socket.io/socket"
 )
 
-var userSockets = make(map[string]string)
-
 func init() {
-	// gob ile time.Time kaydediyoruz
 	gob.Register(time.Time{})
 }
 func main() {
@@ -29,7 +28,7 @@ func main() {
 	router := gin.New()
 	config.PostgreConnection()
 	config.InitS3()
-	io := socket.NewServer(nil, nil)
+	socketServer := socket.NewServer(nil, nil)
 	store := config.RedisSession()
 	router.Use(sessions.Sessions("connect.sid", store))
 	resendClient := resend.NewClient(os.Getenv("RESEND_API_KEY"))
@@ -47,28 +46,31 @@ func main() {
 
 	userRepository := &repository.UserRepository{DB: config.DB}
 	userService := &service.UserService{UserRepository: userRepository}
-	userController := &controller.UserController{UserService: userService, S3Service: s3Service}
-
-	authController := &controller.AuthController{UserService: userService}
 
 	userRoomRepository := &repository.UserRoomRepository{DB: config.DB}
 	userRoomService := &service.UserRoomService{UserRoomRepository: userRoomRepository}
 
 	roomRepository := &repository.RoomRepository{DB: config.DB}
 	roomService := &service.RoomService{RoomRepository: roomRepository, UserRoomService: userRoomService}
-	roomController := &controller.RoomController{RoomService: roomService, UserRoomService: userRoomService, UserService: userService}
 
 	messageRepository := &repository.MessageRepository{DB: config.DB}
 	messageService := &service.MessageService{MessageRepository: messageRepository, RoomService: roomService}
-	messageController := &controller.MessageController{MessageService: messageService}
 
 	friendRepository := &repository.FriendRepository{DB: config.DB}
 	friendService := &service.FriendService{FriendRepository: friendRepository}
-	friendController := &controller.FriendController{FriendService: friendService, UserService: userService}
 
 	requestRepository := &repository.RequestRepository{DB: config.DB}
 	requestService := &service.RequestService{RequestRepository: requestRepository, FriendService: friendService, UserService: userService}
-	requestController := &controller.RequestController{RequestService: requestService, FriendService: friendService}
+
+	socketGateway := &gateway.SocketGateway{Server: socketServer}
+	socketAdapter := &adapter.SocketAdapter{Gateway: socketGateway, MessageService: messageService, FriendService: friendService}
+
+	userController := &controller.UserController{UserService: userService, FriendService: friendService, S3Service: s3Service, SocketAdapter: socketAdapter}
+	authController := &controller.AuthController{UserService: userService}
+	roomController := &controller.RoomController{RoomService: roomService, UserRoomService: userRoomService, UserService: userService}
+	messageController := &controller.MessageController{MessageService: messageService}
+	friendController := &controller.FriendController{FriendService: friendService, UserService: userService, RequestService: requestService, SocketAdapter: socketAdapter}
+	requestController := &controller.RequestController{RequestService: requestService, FriendService: friendService, UserService: userService, SocketAdapter: socketAdapter, ResendService: resendService}
 
 	routes.UserRoute(router, userController)
 	routes.AuthRoute(router, authController)
@@ -76,7 +78,7 @@ func main() {
 	routes.FriendRoute(router, friendController)
 	routes.RequestRoute(router, requestController)
 	routes.RoomRoute(router, roomController)
-	routes.SetupSocketIO(router, io, messageService, userService, friendService, requestService, resendService)
+	routes.SetupSocketIO(router, socketServer, socketAdapter)
 
 	if err := router.Run(":9000"); err != nil {
 		log.Fatal("failed run app: ", err)

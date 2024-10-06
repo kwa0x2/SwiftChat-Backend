@@ -16,6 +16,7 @@ type Room struct {
 	CreatedAt     time.Time      `json:"createdAt" gorm:"not null;column:createdAt;default:CURRENT_TIMESTAMP"`
 	UpdatedAt     time.Time      `json:"updatedAt" gorm:"not null;column:updatedAt;default:CURRENT_TIMESTAMP"`
 	DeletedAt     gorm.DeletedAt `json:"deletedAt" gorm:"column:deletedAt"`
+	LastMessageID uuid.UUID      `json:"message_id" gorm:"type:uuid"`
 
 	UserRoom UserRoom `json:"user_room" gorm:"foreignKey:RoomID;references:RoomID"`
 }

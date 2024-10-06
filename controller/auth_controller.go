@@ -33,7 +33,7 @@ func (ctrl *AuthController) GoogleLogin(ctx *gin.Context) {
 func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 	expectedState := ctx.Query("state")
 	if expectedState != ctrl.State {
-		ctx.String(http.StatusBadRequest, "States don't Match!!!")
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Bad Request", "States don't Match!!!"))
 		return
 	}
 
@@ -43,13 +43,13 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 
 	token, err := googleConfig.Exchange(context.Background(), code)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "Code-Token Exchange Failed"))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Code-Token Exchange Failed"))
 		return
 	}
 
 	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "User data fetch failed"))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "User data fetch failed"))
 		return
 	}
 	defer resp.Body.Close()
@@ -57,16 +57,15 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 	var userData map[string]interface{}
 	err = json.NewDecoder(resp.Body).Decode(&userData)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "JSON Parsing Failed"))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "JSON Parsing Failed"))
 		return
 	}
 
 	// id unique degilse
 	if !ctrl.UserService.IsIdUnique(userData["id"].(string)) {
-
 		user, err := ctrl.UserService.GetUserById(userData["id"].(string))
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "get user by id sorunu"))
 			return
 		}
 		session := sessions.Default(ctx)
@@ -91,7 +90,7 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 
 	tokenString, err := utils.GenerateToken(jwtClaims)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", "JWT Token Failed"))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "JWT Token Failed"))
 		return
 	}
 
@@ -128,13 +127,13 @@ type SignUpBody struct {
 func (ctrl *AuthController) SignUp(ctx *gin.Context) {
 	var signUpBody SignUpBody
 	if err := ctx.BindJSON(&signUpBody); err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
 
 	claims, err := utils.GetClaims(ctx.GetHeader("Authorization"))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "claims error"))
 		return
 	}
 
@@ -154,14 +153,13 @@ func (ctrl *AuthController) SignUp(ctx *gin.Context) {
 	session.Save()
 
 	if !ctrl.UserService.IsUsernameUnique(signUpBody.Username) {
-		ctx.JSON(http.StatusConflict, utils.NewErrorResponse(http.StatusConflict, "Conflict", "Username must be unique"))
+		ctx.JSON(http.StatusConflict, utils.NewErrorResponse("Conflict", "Username must be unique"))
 		return
 	}
 
 	userdata, err := ctrl.UserService.Insert(&user)
-
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "insert yapilirken hata"))
 		return
 	}
 

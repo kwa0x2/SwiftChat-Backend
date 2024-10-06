@@ -1,10 +1,10 @@
 package controller
 
 import (
-	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/kwa0x2/realtime-chat-backend/service"
+	"github.com/kwa0x2/realtime-chat-backend/types"
 	"github.com/kwa0x2/realtime-chat-backend/utils"
 	"net/http"
 )
@@ -16,44 +16,44 @@ type RoomController struct {
 	FriendService   *service.FriendService
 }
 
+type ActionBody struct {
+	Mail   string              `json:"mail"`
+	Status types.RequestStatus `json:"status"`
+}
+
 func (ctrl *RoomController) GetOrCreatePrivateRoom(ctx *gin.Context) {
 	var actionBody ActionBody
 	session := sessions.Default(ctx)
 
 	if err := ctx.BindJSON(&actionBody); err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", err.Error()))
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
 
 	userId := session.Get("id")
 	if userId == nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", "UserId not found"))
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", "UserId not found"))
 		return
 	}
 
 	user, err := ctrl.UserService.GetByEmail(actionBody.Mail)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Errors", err.Error()))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Errors", err.Error()))
 		return
 	}
 
 	room, roomErr := ctrl.UserRoomService.GetPrivateRoom(userId.(string), user.UserID)
 	if roomErr != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", err.Error()))
 		return
 	}
-
-	//data, err := ctrl.FriendService.GetBlocked(userMail.(string))
-	//if err != nil {
-	//	ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
-	//}
 
 	var roomId string
 
 	if room == "" {
 		newRoomId, newRoomErr := ctrl.RoomService.CreateAndAddUsers(userId.(string), user.UserID, "private")
 		if newRoomErr != nil {
-			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Error", err.Error()))
+			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "create and add users to room error"))
 			return
 		}
 		roomId = newRoomId
@@ -71,13 +71,19 @@ func (ctrl *RoomController) GetChatList(ctx *gin.Context) {
 
 	userId := session.Get("id")
 	if userId == nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse(http.StatusBadRequest, "Bad Request", "UserId not found"))
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", "UserId not found"))
 		return
 	}
-	fmt.Printf("userid %s", userId.(string))
-	data, err := ctrl.RoomService.GetChatList(userId.(string))
+
+	userMail := session.Get("mail")
+	if userMail == nil {
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", "UserMail not found"))
+		return
+	}
+
+	data, err := ctrl.RoomService.GetChatList(userId.(string), userMail.(string))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse(http.StatusInternalServerError, "Internal Server Errors", err.Error()))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Errors", "get chat list error"))
 		return
 	}
 

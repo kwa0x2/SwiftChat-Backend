@@ -41,15 +41,13 @@ func (r *RequestRepository) GetComingRequests(receiverMail string) ([]*models.Re
 //endregion
 
 // region UPDATE BY MAIL REPOSITORY
-func (r *RequestRepository) Update(tx *gorm.DB, request *models.Request) error {
+func (r *RequestRepository) Update(tx *gorm.DB, filter map[string]interface{}, updates map[string]interface{}) error {
 	db := r.DB
 	if tx != nil {
 		db = tx
 	}
 
-	result := db.Model(&models.Request{}).
-		Where("receiver_mail = ? AND sender_mail = ?", request.ReceiverMail, request.SenderMail).
-		Update("request_status", request.RequestStatus)
+	result := db.Model(&models.Request{}).Where(filter).Updates(updates)
 
 	if result.Error != nil {
 		return result.Error
