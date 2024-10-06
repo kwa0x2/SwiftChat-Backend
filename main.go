@@ -65,12 +65,12 @@ func main() {
 	socketGateway := &gateway.SocketGateway{Server: socketServer}
 	socketAdapter := &adapter.SocketAdapter{Gateway: socketGateway, MessageService: messageService, FriendService: friendService}
 
-	userController := &controller.UserController{UserService: userService, FriendService: friendService, S3Service: s3Service, SocketAdapter: socketAdapter}
-	authController := &controller.AuthController{UserService: userService}
-	roomController := &controller.RoomController{RoomService: roomService, UserRoomService: userRoomService, UserService: userService}
-	messageController := &controller.MessageController{MessageService: messageService}
-	friendController := &controller.FriendController{FriendService: friendService, UserService: userService, RequestService: requestService, SocketAdapter: socketAdapter}
-	requestController := &controller.RequestController{RequestService: requestService, FriendService: friendService, UserService: userService, SocketAdapter: socketAdapter, ResendService: resendService}
+	userController := controller.NewUserController(userService, friendService, s3Service, socketAdapter)
+	authController := controller.NewAuthController(userService)
+	roomController := controller.NewRoomController(roomService, userRoomService, userService, friendService)
+	messageController := controller.NewMessageController(messageService)
+	friendController := controller.NewFriendController(friendService, userService, requestService, socketAdapter)
+	requestController := controller.NewRequestController(requestService, friendService, userService, socketAdapter, resendService)
 
 	routes.UserRoute(router, userController)
 	routes.AuthRoute(router, authController)

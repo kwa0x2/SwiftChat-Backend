@@ -3,13 +3,13 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"github.com/google/uuid"
 	"github.com/kwa0x2/realtime-chat-backend/models"
+	"sync"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-contrib/sessions"
-	"github.com/google/uuid"
-
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,26 +18,44 @@ import (
 	"github.com/kwa0x2/realtime-chat-backend/utils"
 )
 
-type AuthController struct {
-	UserService *service.UserService
-	State       string
+type IAuthController interface {
+	GoogleLogin(ctx *gin.Context)
+	GoogleCallback(ctx *gin.Context)
+	CheckAuth(ctx *gin.Context)
+	Logout(ctx *gin.Context)
+	SignUp(ctx *gin.Context)
 }
 
-func (ctrl *AuthController) GoogleLogin(ctx *gin.Context) {
+type authController struct {
+	userService *service.UserService
+}
+
+func NewAuthController(userService *service.UserService) IAuthController {
+	return &authController{
+		userService: userService,
+	}
+}
+
+var (
+	stateStore = sync.Map{}
+)
+
+func (ctrl *authController) GoogleLogin(ctx *gin.Context) {
 	googleConfig := config.GoogleConfig()
-	ctrl.State = uuid.New().String()
-	url := googleConfig.AuthCodeURL(ctrl.State)
+	state := uuid.New().String()
+	stateStore.Store(state, state)
+	url := googleConfig.AuthCodeURL(state)
 	ctx.Redirect(http.StatusTemporaryRedirect, url)
 }
 
-func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
-	expectedState := ctx.Query("state")
-	if expectedState != ctrl.State {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Bad Request", "States don't Match!!!"))
+func (ctrl *authController) GoogleCallback(ctx *gin.Context) {
+	code := ctx.Query("code")
+	state := ctx.Query("state")
+
+	if _, exists := stateStore.Load(state); !exists {
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Bad Request", "Invalid state parameter. Please try again"))
 		return
 	}
-
-	code := ctx.Query("code")
 
 	googleConfig := config.GoogleConfig()
 
@@ -62,16 +80,16 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 	}
 
 	// id unique degilse
-	if !ctrl.UserService.IsIdUnique(userData["id"].(string)) {
-		user, err := ctrl.UserService.GetUserById(userData["id"].(string))
+	if !ctrl.userService.IsIdUnique(userData["id"].(string)) {
+		user, err := ctrl.userService.GetUserById(userData["id"].(string))
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "get user by id sorunu"))
+			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to retrieve user by ID"))
 			return
 		}
 		session := sessions.Default(ctx)
 		session.Set("id", userData["id"].(string))
 		session.Set("name", user.UserName)
-		session.Set("mail", userData["email"].(string))
+		session.Set("email", userData["email"].(string))
 		session.Set("photo", user.UserPhoto)
 		session.Set("role", user.UserRole)
 		session.Save()
@@ -97,19 +115,19 @@ func (ctrl *AuthController) GoogleCallback(ctx *gin.Context) {
 	ctx.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/createname?token="+tokenString)
 }
 
-func (ctrl *AuthController) CheckAuth(ctx *gin.Context) {
+func (ctrl *authController) CheckAuth(ctx *gin.Context) {
 	session := sessions.Default(ctx)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"id":    session.Get("id"),
 		"name":  session.Get("name"),
-		"mail":  session.Get("mail"),
+		"email": session.Get("email"),
 		"photo": session.Get("photo"),
 		"role":  session.Get("role"),
 	})
 }
 
-func (ctrl *AuthController) Logout(ctx *gin.Context) {
+func (ctrl *authController) Logout(ctx *gin.Context) {
 	session := sessions.Default(ctx)
 
 	session.Clear()
@@ -120,11 +138,11 @@ func (ctrl *AuthController) Logout(ctx *gin.Context) {
 }
 
 type SignUpBody struct {
-	Username  string `json:"user_name"`
+	UserName  string `json:"user_name"`
 	UserPhoto string `json:"user_photo"`
 }
 
-func (ctrl *AuthController) SignUp(ctx *gin.Context) {
+func (ctrl *authController) SignUp(ctx *gin.Context) {
 	var signUpBody SignUpBody
 	if err := ctx.BindJSON(&signUpBody); err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
@@ -133,35 +151,35 @@ func (ctrl *AuthController) SignUp(ctx *gin.Context) {
 
 	claims, err := utils.GetClaims(ctx.GetHeader("Authorization"))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "claims error"))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to retrieve JWT claims"))
 		return
 	}
 
-	user := models.User{
+	userInsertObj := models.User{
 		UserID:    claims["id"].(string),
 		UserEmail: claims["user_email"].(string),
-		UserName:  signUpBody.Username,
+		UserName:  signUpBody.UserName,
 		UserPhoto: signUpBody.UserPhoto,
 	}
 
 	session := sessions.Default(ctx)
 	session.Set("id", claims["id"].(string))
-	session.Set("name", signUpBody.Username)
-	session.Set("mail", claims["user_email"].(string))
+	session.Set("name", signUpBody.UserName)
+	session.Set("email", claims["user_email"].(string))
 	session.Set("photo", signUpBody.UserPhoto)
 	session.Set("role", "user")
 	session.Save()
 
-	if !ctrl.UserService.IsUsernameUnique(signUpBody.Username) {
-		ctx.JSON(http.StatusConflict, utils.NewErrorResponse("Conflict", "Username must be unique"))
+	if !ctrl.userService.IsUsernameUnique(signUpBody.UserName) {
+		ctx.JSON(http.StatusConflict, utils.NewErrorResponse("Conflict", "Username is already taken, must be unique"))
 		return
 	}
 
-	userdata, err := ctrl.UserService.Insert(&user)
+	userData, err := ctrl.userService.Insert(&userInsertObj)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "insert yapilirken hata"))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to insert new user into database"))
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, userdata)
+	ctx.JSON(http.StatusCreated, utils.NewGetResponse(1, userData))
 }

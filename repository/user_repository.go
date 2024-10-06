@@ -12,7 +12,7 @@ type UserRepository struct {
 // region IS USERNAME UNIQUE REPOSITORY
 func (r *UserRepository) IsUsernameUnique(username string) bool {
 	var count int64
-	r.DB.Where("user_name = ?", username).Count(&count)
+	r.DB.Model(&models.User{}).Where("user_name = ?", username).Count(&count)
 	return count == 0
 }
 
@@ -40,7 +40,7 @@ func (r *UserRepository) Insert(user *models.User) (*models.User, error) {
 // region GET USER BY EMAIL REPOSITORY
 func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 	var user *models.User
-	if err := r.DB.Table("USER").Where("user_email = ?", email).First(&user).Error; err != nil {
+	if err := r.DB.Model(&models.User{}).Where("user_email = ?", email).First(&user).Error; err != nil {
 		return nil, err
 	}
 
@@ -52,7 +52,7 @@ func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 // region GET USER BY ID SERVICE
 func (r *UserRepository) GetUserById(id string) (*models.User, error) {
 	var user *models.User
-	if err := r.DB.Table("USER").Where("user_id = ?", id).First(&user).Error; err != nil {
+	if err := r.DB.Model(&models.User{}).Where("user_id = ?", id).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return user, nil
@@ -63,7 +63,7 @@ func (r *UserRepository) GetUserById(id string) (*models.User, error) {
 // region IS ID UNIQUE SERVICE
 func (r *UserRepository) IsIdUnique(id string) bool {
 	var count int64
-	r.DB.Table("USER").Where("user_id = ?", id).Count(&count)
+	r.DB.Model(&models.User{}).Where("user_id = ?", id).Count(&count)
 	return count == 0
 }
 

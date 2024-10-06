@@ -2,6 +2,8 @@ package utils
 
 import (
 	"errors"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
 	"os"
 
 	"github.com/dgrijalva/jwt-go"
@@ -58,5 +60,26 @@ func GetClaims(tokenString string) (map[string]interface{}, error) {
 	return claims, nil
 }
 
+type UserInfo struct {
+	Email string
+	ID    string
+	Name  string
+}
 
+func GetUserSessionInfo(ctx *gin.Context) (*UserInfo, error) {
+	session := sessions.Default(ctx)
 
+	email := session.Get("email")
+	id := session.Get("id")
+	name := session.Get("name")
+
+	if email == nil || id == nil || name == nil {
+		return nil, errors.New("user information not found in session")
+	}
+
+	return &UserInfo{
+		Email: email.(string),
+		ID:    id.(string),
+		Name:  name.(string),
+	}, nil
+}

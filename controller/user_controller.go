@@ -8,21 +8,34 @@ import (
 	"github.com/kwa0x2/realtime-chat-backend/socket/adapter"
 	"github.com/kwa0x2/realtime-chat-backend/utils"
 	"net/http"
-	"sync"
 )
 
-type UserController struct {
-	UserService   *service.UserService
-	FriendService *service.FriendService
-	S3Service     *service.S3Service
-	SocketAdapter *adapter.SocketAdapter
+type IUserController interface {
+	UpdateUsername(ctx *gin.Context)
+	UploadProfilePhoto(ctx *gin.Context)
+}
+
+type userController struct {
+	userService   *service.UserService
+	friendService *service.FriendService
+	s3Service     *service.S3Service
+	socketAdapter *adapter.SocketAdapter
+}
+
+func NewUserController(userService *service.UserService, friendService *service.FriendService, s3Service *service.S3Service, socketAdapter *adapter.SocketAdapter) IUserController {
+	return &userController{
+		userService:   userService,
+		friendService: friendService,
+		s3Service:     s3Service,
+		socketAdapter: socketAdapter,
+	}
 }
 
 type UsernameUpdateBody struct {
 	UserName string `json:"user_name"`
 }
 
-func (ctrl *UserController) UpdateUsername(ctx *gin.Context) {
+func (ctrl *userController) UpdateUsername(ctx *gin.Context) {
 	var requestBody UsernameUpdateBody
 	session := sessions.Default(ctx)
 
@@ -31,14 +44,14 @@ func (ctrl *UserController) UpdateUsername(ctx *gin.Context) {
 		return
 	}
 
-	userMail := session.Get("mail")
-	if userMail == nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", "UserMail not found"))
+	userSessionInfo, sessionErr := utils.GetUserSessionInfo(ctx)
+	if sessionErr != nil {
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", sessionErr.Error()))
 		return
 	}
 
-	if err := ctrl.UserService.UpdateUsernameByMail(requestBody.UserName, userMail.(string)); err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "update username by mail error"))
+	if err := ctrl.userService.UpdateUsernameByMail(requestBody.UserName, userSessionInfo.Email); err != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error updating username by email"))
 		return
 	}
 
@@ -47,32 +60,20 @@ func (ctrl *UserController) UpdateUsername(ctx *gin.Context) {
 
 	emitData := map[string]interface{}{
 		"updated_username": requestBody.UserName,
-		"user_email":       userMail.(string),
+		"user_email":       userSessionInfo.Email,
 	}
 
 	fmt.Println(emitData)
 
-	friends, err := ctrl.FriendService.GetFriends(userMail.(string), true)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "get friends error"))
+	if err := ctrl.socketAdapter.EmitToFriends("update_username", userSessionInfo.Email, emitData); err == nil {
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to emit update username notification to friends"))
 		return
 	}
 
-	var wg sync.WaitGroup
-	for _, friend := range friends {
-		wg.Add(1)
-		go func(friendEmail string) {
-			defer wg.Done()
-			fmt.Println("updateusername")
-			ctrl.SocketAdapter.EmitToNotificationRoom("update_username", friendEmail, emitData)
-		}(friend.UserMail)
-	}
-	wg.Wait()
-
-	ctx.JSON(http.StatusOK, utils.NewSuccessResponse("OK", "successfully changed"))
+	ctx.JSON(http.StatusOK, utils.NewSuccessResponse("OK", "Username successfully updated"))
 }
 
-func (ctrl *UserController) UploadProfilePicture(ctx *gin.Context) {
+func (ctrl *userController) UploadProfilePhoto(ctx *gin.Context) {
 	file, header, err := ctx.Request.FormFile("file")
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Form File Error", err.Error()))
@@ -80,49 +81,39 @@ func (ctrl *UserController) UploadProfilePicture(ctx *gin.Context) {
 	}
 	defer file.Close()
 
-	userMail, exists := ctx.Get("mail")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse("Unauthorized", "Authorization required"))
-		return
-	}
-
-	fileURL, err := ctrl.S3Service.UploadFile(file, header)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "file upload to s3 bucket error"))
-		return
-	}
-
-	if err := ctrl.UserService.UpdateUserPhotoByMail(fileURL, userMail.(string)); err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "update user photo by mail error"))
-		return
-	}
-
 	session := sessions.Default(ctx)
-	if session.Get("mail") != nil {
+
+	userSessionInfo, sessionErr := utils.GetUserSessionInfo(ctx)
+	if sessionErr != nil {
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", sessionErr.Error()))
+		return
+	}
+
+	fileURL, err := ctrl.s3Service.UploadFile(file, header)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error uploading file to S3 bucket"))
+		return
+	}
+
+	if err := ctrl.userService.UpdateUserPhotoByMail(fileURL, userSessionInfo.Email); err != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error updating user photo"))
+		return
+	}
+
+	if session.Get("email") != nil {
 		session.Set("photo", fileURL)
 		session.Save()
 	}
 
 	emitData := map[string]interface{}{
 		"updated_user_photo": fileURL,
-		"user_email":         userMail.(string),
+		"user_email":         userSessionInfo.Email,
 	}
 
-	friends, err := ctrl.FriendService.GetFriends(userMail.(string), true)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "get friends error"))
+	if err := ctrl.socketAdapter.EmitToFriends("update_user_photo", userSessionInfo.Email, emitData); err != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to emit update username notification to friends"))
 		return
 	}
-
-	var wg sync.WaitGroup
-	for _, friend := range friends {
-		wg.Add(1)
-		go func(friendEmail string) {
-			defer wg.Done()
-			ctrl.SocketAdapter.EmitToNotificationRoom("update_user_photo", friendEmail, emitData)
-		}(friend.UserMail)
-	}
-	wg.Wait()
 
 	ctx.JSON(http.StatusOK, fileURL)
 }

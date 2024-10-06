@@ -10,32 +10,46 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/kwa0x2/realtime-chat-backend/service"
 	"github.com/kwa0x2/realtime-chat-backend/utils"
 )
 
-type RequestController struct {
-	RequestService *service.RequestService
-	FriendService  *service.FriendService
-	UserService    *service.UserService
-	SocketAdapter  *adapter.SocketAdapter
-	ResendService  *service.ResendService
+type IRequestController interface {
+	GetComingRequests(ctx *gin.Context)
+	PatchUpdateRequest(ctx *gin.Context)
+	SendFriend(ctx *gin.Context)
 }
 
-func (ctrl *RequestController) GetComingRequests(ctx *gin.Context) {
-	session := sessions.Default(ctx)
+type requestController struct {
+	requestService *service.RequestService
+	friendService  *service.FriendService
+	userService    *service.UserService
+	socketAdapter  *adapter.SocketAdapter
+	resendService  *service.ResendService
+}
 
-	userMail := session.Get("mail")
-	if userMail == nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", "UserMail not found"))
+func NewRequestController(requestService *service.RequestService, friendService *service.FriendService,
+	userService *service.UserService, socketAdapter *adapter.SocketAdapter, resendService *service.ResendService) IRequestController {
+	return &requestController{
+		requestService: requestService,
+		friendService:  friendService,
+		userService:    userService,
+		socketAdapter:  socketAdapter,
+		resendService:  resendService,
+	}
+}
+
+func (ctrl *requestController) GetComingRequests(ctx *gin.Context) {
+	userSessionInfo, err := utils.GetUserSessionInfo(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", err.Error()))
 		return
 	}
 
-	data, err := ctrl.RequestService.GetComingRequests(userMail.(string))
+	data, err := ctrl.requestService.GetComingRequests(userSessionInfo.Email)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "gelen mesajlar alinirken hata"))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error retrieving incoming requests"))
 		return
 	}
 
@@ -49,62 +63,60 @@ func (ctrl *RequestController) GetComingRequests(ctx *gin.Context) {
 		responseData = append(responseData, responseItem)
 	}
 
-	ctx.JSON(http.StatusOK, responseData)
+	ctx.JSON(http.StatusOK, utils.NewGetResponse(len(responseData), responseData))
 }
 
-func (ctrl *RequestController) PatchUpdateRequest(ctx *gin.Context) {
+func (ctrl *requestController) PatchUpdateRequest(ctx *gin.Context) {
 	var requestBody ActionBody
-	session := sessions.Default(ctx)
 
 	if err := ctx.BindJSON(&requestBody); err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
 
-	userMail := session.Get("mail")
-	if userMail == nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", "UserMail not found"))
+	userSessionInfo, err := utils.GetUserSessionInfo(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", err.Error()))
 		return
 	}
 
 	requestObj := models.Request{
-		SenderMail:    requestBody.Mail,
-		ReceiverMail:  userMail.(string),
+		SenderMail:    requestBody.Email,
+		ReceiverMail:  userSessionInfo.Email,
 		RequestStatus: requestBody.Status,
 	}
 
-	data, err := ctrl.RequestService.UpdateFriendshipRequest(&requestObj)
+	data, err := ctrl.requestService.UpdateFriendshipRequest(&requestObj)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "friendship req update edilirken hata"))
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error updating friendship request"))
 		return
 	}
 
-	ctrl.SocketAdapter.EmitToNotificationRoom("update_friendship_request", requestBody.Mail, data)
-	ctx.JSON(http.StatusOK, utils.NewSuccessResponse("Success", "success"))
+	ctrl.socketAdapter.EmitToNotificationRoom("update_friendship_request", requestBody.Email, data)
+	ctx.JSON(http.StatusOK, utils.NewSuccessResponse("Success", "Friendship request updated successfully"))
 }
 
-func (ctrl *RequestController) SendFriend(ctx *gin.Context) {
+func (ctrl *requestController) SendFriend(ctx *gin.Context) {
 	var actionBody ActionBody
-	session := sessions.Default(ctx)
 
 	if err := ctx.BindJSON(&actionBody); err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
 
-	userMail := session.Get("mail")
-	if userMail == nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", "UserMail not found"))
+	userSessionInfo, err := utils.GetUserSessionInfo(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", err.Error()))
 		return
 	}
 
 	requestObj := models.Request{
-		SenderMail:   userMail.(string),
-		ReceiverMail: actionBody.Mail,
+		SenderMail:   userSessionInfo.Email,
+		ReceiverMail: actionBody.Email,
 	}
 
 	var pgErr *pgconn.PgError
-	existingFriend, err := ctrl.FriendService.GetFriend(requestObj.SenderMail, requestObj.ReceiverMail)
+	existingFriend, err := ctrl.friendService.GetFriend(requestObj.SenderMail, requestObj.ReceiverMail)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Unable to retrieve friend status"))
 		return
@@ -121,8 +133,8 @@ func (ctrl *RequestController) SendFriend(ctx *gin.Context) {
 		}
 	}
 
-	if isEmailExists := ctrl.UserService.IsEmailExists(requestObj.ReceiverMail); !isEmailExists {
-		if err := ctrl.RequestService.Insert(nil, &requestObj); err != nil {
+	if isEmailExists := ctrl.userService.IsEmailExists(requestObj.ReceiverMail); !isEmailExists {
+		if err := ctrl.requestService.Insert(nil, &requestObj); err != nil {
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 				ctx.JSON(http.StatusConflict, utils.NewErrorResponse("Already Sent", "Duplicate friend request"))
 				return
@@ -131,7 +143,7 @@ func (ctrl *RequestController) SendFriend(ctx *gin.Context) {
 			return
 		}
 
-		_, err := ctrl.ResendService.SendMail(requestObj.ReceiverMail, "You have received a new friend request from the SwiftChat app!", "friend_request")
+		_, err := ctrl.resendService.SendMail(requestObj.ReceiverMail, "You have received a new friend request from the SwiftChat app!", "friend_request")
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to send email"))
 			return
@@ -141,7 +153,7 @@ func (ctrl *RequestController) SendFriend(ctx *gin.Context) {
 		return
 	}
 
-	data, err := ctrl.RequestService.InsertAndReturnUser(&requestObj)
+	data, err := ctrl.requestService.InsertAndReturnUser(&requestObj)
 	if err != nil {
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			ctx.JSON(http.StatusConflict, utils.NewErrorResponse("Already Sent", "Duplicate friend request"))
@@ -151,6 +163,6 @@ func (ctrl *RequestController) SendFriend(ctx *gin.Context) {
 		return
 	}
 
-	ctrl.SocketAdapter.EmitToNotificationRoom("friend_request", requestObj.ReceiverMail, data)
+	ctrl.socketAdapter.EmitToNotificationRoom("friend_request", requestObj.ReceiverMail, data)
 	ctx.JSON(http.StatusOK, utils.NewSuccessResponse("Friend Sent", "Friend request successfully sent"))
 }

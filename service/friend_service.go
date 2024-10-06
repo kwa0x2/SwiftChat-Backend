@@ -61,8 +61,8 @@ func (s *FriendService) GetFriend(userMail, userMail2 string) (*models.Friend, e
 }
 
 // region GET BLOCKED FRIENDS BY MAIL SERVICE
-func (s *FriendService) GetBlocked(userId string) ([]*models.Friend, error) {
-	return s.FriendRepository.GetBlocked(userId)
+func (s *FriendService) GetBlocked(userEmail string) ([]*models.Friend, error) {
+	return s.FriendRepository.GetBlocked(userEmail)
 }
 
 //endregion
