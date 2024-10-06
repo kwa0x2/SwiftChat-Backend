@@ -50,8 +50,8 @@ func (s *FriendService) Delete(friend *models.Friend) error {
 //endregion
 
 // region GET FRIENDS BY MAIL SERVICE
-func (s *FriendService) GetFriends(userMail string) ([]*models.Friend, error) {
-	return s.FriendRepository.GetFriends(userMail)
+func (s *FriendService) GetFriends(userMail string, isUnFriendStatusAllow bool) ([]*models.Friend, error) {
+	return s.FriendRepository.GetFriends(userMail, isUnFriendStatusAllow)
 }
 
 //endregion

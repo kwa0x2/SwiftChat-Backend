@@ -4,9 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/kwa0x2/realtime-chat-backend/controller"
 	"github.com/kwa0x2/realtime-chat-backend/middlewares"
-	"github.com/kwa0x2/realtime-chat-backend/service"
 	"github.com/kwa0x2/realtime-chat-backend/socket/adapter"
-	"github.com/kwa0x2/realtime-chat-backend/socket/gateway"
 	"github.com/zishang520/socket.io/socket"
 )
 
@@ -36,8 +34,6 @@ func MessageRoute(router *gin.Engine, messageController *controller.MessageContr
 	{
 		messageRoutes.POST("conversation/private", messageController.GetPrivateConversation)
 		messageRoutes.POST("history", messageController.GetMessageHistory)
-		messageRoutes.DELETE(":messageId", messageController.DeleteById)
-		messageRoutes.PATCH("", messageController.UpdateMessageByIdBody)
 	}
 }
 
@@ -46,14 +42,18 @@ func FriendRoute(router *gin.Engine, friendController *controller.FriendControll
 	{
 		friendRoutes.GET("", friendController.GetFriends) // get all
 		friendRoutes.GET("blocked", friendController.GetBlocked)
+		friendRoutes.PATCH("block", friendController.Block)
+		friendRoutes.DELETE("", friendController.Delete)
 	}
 }
 
 func RequestRoute(router *gin.Engine, requestController *controller.RequestController) {
 	requestRoutes := router.Group("/api/v1/request")
 	{
-		requestRoutes.POST("", requestController.Insert)           // send friend req
+		requestRoutes.POST("", requestController.SendFriend)       // send friend req
 		requestRoutes.GET("", requestController.GetComingRequests) // get coming req
+		requestRoutes.PATCH("", requestController.PatchUpdateRequest)
+
 	}
 }
 
@@ -65,12 +65,9 @@ func RoomRoute(router *gin.Engine, roomController *controller.RoomController) {
 	}
 }
 
-func SetupSocketIO(router *gin.Engine, io *socket.Server, messageService *service.MessageService, userService *service.UserService, friendService *service.FriendService, requestService *service.RequestService, resendService *service.ResendService) {
-	socketGateway := gateway.NewSocketGateway(io)
-	socketAdapter := adapter.NewSocketAdapter(socketGateway, messageService, userService, friendService, requestService, resendService)
-
+func SetupSocketIO(router *gin.Engine, server *socket.Server, socketAdapter *adapter.SocketAdapter) {
 	socketAdapter.HandleConnection()
 
-	router.GET("socket.io/*any", middlewares.SessionMiddleware(), gin.WrapH(io.ServeHandler(nil)))
-	router.POST("socket.io/*any", middlewares.SessionMiddleware(), gin.WrapH(io.ServeHandler(nil)))
+	router.GET("socket.io/*any", middlewares.SessionMiddleware(), gin.WrapH(server.ServeHandler(nil)))
+	router.POST("socket.io/*any", middlewares.SessionMiddleware(), gin.WrapH(server.ServeHandler(nil)))
 }

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"github.com/kwa0x2/realtime-chat-backend/models"
+	"github.com/kwa0x2/realtime-chat-backend/types"
 	"gorm.io/gorm"
 )
 
@@ -40,7 +41,8 @@ func (r *MessageRepository) GetMessageHistoryByRoomID(roomId string) ([]*models.
 			message_id, 
 			sender_id, 
 			room_id, 
-			message_status, 
+			message_read_status,
+			message_type,
 			"createdAt", 
 			"updatedAt",
 			"deletedAt",
@@ -61,4 +63,18 @@ func (r *MessageRepository) DeleteById(messageId string) error {
 
 func (r *MessageRepository) UpdateMessageByIdBody(messageId, message string) error {
 	return r.DB.Model(&models.Message{}).Where("message_id = ?", messageId).Update("message", message).Error
+}
+
+func (r *MessageRepository) StarMessageById(messageId string) error {
+	return r.DB.Model(&models.Message{}).Where("message_id = ?", messageId).UpdateColumns(&models.Message{MessageType: types.StarredText}).Error
+}
+
+func (r *MessageRepository) ReadMessageByRoomId(connectedUserID, roomId string, messageId *string) error {
+	query := r.DB.Model(&models.Message{}).Unscoped().Where("sender_id != ? AND room_id = ?", connectedUserID, roomId)
+
+	if messageId != nil {
+		query = query.Where("message_id = ?", *messageId)
+	}
+
+	return query.UpdateColumns(&models.Message{MessageReadStatus: types.Readed}).Error
 }

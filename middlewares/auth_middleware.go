@@ -15,14 +15,14 @@ func JwtMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		token := ctx.GetHeader("Authorization")
 		if token == "" {
-			ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization token is required"))
+			ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse("Unauthorized", "Authorization token is required"))
 			ctx.Abort()
 			return
 		}
 
 		err := utils.VerifyToken(token)
 		if err != nil {
-			ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization failed"))
+			ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse("Unauthorized", "Authorization failed"))
 			ctx.Abort()
 			return
 		}
@@ -36,7 +36,7 @@ func SessionMiddleware() gin.HandlerFunc {
 		sessionUserMail := session.Get("mail")
 
 		if sessionUserID == nil || sessionUserMail == nil {
-			ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization failed"))
+			ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse("Unauthorized", "Authorization failed"))
 			ctx.Abort()
 			return
 		}
@@ -79,7 +79,7 @@ func CombinedAuthMiddleware() gin.HandlerFunc {
 		}
 
 		// ikiside yoksa
-		ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse(http.StatusUnauthorized, "Unauthorized", "Authorization failed"))
+		ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse("Unauthorized", "Authorization failed"))
 		ctx.Abort()
 	}
 }

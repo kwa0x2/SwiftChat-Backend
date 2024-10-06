@@ -32,8 +32,9 @@ func (s *MessageService) InsertAndUpdateRoom(message *models.Message) (*models.M
 	}
 
 	roomObj := &models.Room{
-		RoomID:      message.RoomID,
-		LastMessage: message.Message,
+		RoomID:        message.RoomID,
+		LastMessageID: message.MessageID,
+		LastMessage:   message.Message,
 	}
 
 	if err := s.RoomService.Update(tx, roomObj); err != nil {
@@ -56,6 +57,18 @@ func (s *MessageService) DeleteById(messageId string) error {
 	return s.MessageRepository.DeleteById(messageId)
 }
 
+func (s *MessageService) DeleteByIdAnyUpdateRoom(messageId string) error {
+	return s.MessageRepository.DeleteById(messageId)
+}
+
 func (s *MessageService) UpdateMessageByIdBody(messageId, message string) error {
 	return s.MessageRepository.UpdateMessageByIdBody(messageId, message)
+}
+
+func (s *MessageService) StarMessageById(messageId string) error {
+	return s.MessageRepository.StarMessageById(messageId)
+}
+
+func (s *MessageService) ReadMessageByRoomId(connectedUserID, roomId string, messageId *string) error {
+	return s.MessageRepository.ReadMessageByRoomId(connectedUserID, roomId, messageId)
 }

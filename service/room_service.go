@@ -60,6 +60,6 @@ func (s *RoomService) CreateAndAddUsers(createdUserId string, userId2 string, ro
 
 //endregion
 
-func (s *RoomService) GetChatList(userId string) ([]*repository.ChatList, error) {
-	return s.RoomRepository.GetChatList(userId)
+func (s *RoomService) GetChatList(userId, userMail string) ([]*repository.ChatList, error) {
+	return s.RoomRepository.GetChatList(userId, userMail)
 }
