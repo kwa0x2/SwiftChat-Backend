@@ -1,19 +1,36 @@
 package repository
 
 import (
+	"github.com/google/uuid"
 	"github.com/kwa0x2/realtime-chat-backend/models"
 	"github.com/kwa0x2/realtime-chat-backend/types"
 	"gorm.io/gorm"
 )
 
-type MessageRepository struct {
+type IMessageRepository interface {
+	Create(tx *gorm.DB, message *models.Message) (*models.Message, error)
+	UpdateExceptUpdatedAt(whereMessage *models.Message, updateMessage *models.Message, isUnscoped bool) error
+	Delete(whereMessage *models.Message) error
+	ReadMessageByRoomId(connectedUserID, roomId string, messageId *string) error
+	GetMessageHistoryByRoomID(roomId uuid.UUID) ([]*models.Message, error)
+	GetDB() *gorm.DB
+}
+
+type messageRepository struct {
 	DB *gorm.DB
 }
 
-func (r *MessageRepository) CreateMessage(tx *gorm.DB, message *models.Message) (*models.Message, error) {
+func NewMessageRepository(db *gorm.DB) IMessageRepository {
+	return &messageRepository{
+		DB: db,
+	}
+}
+
+// region "Create" adds a new message to the database
+func (r *messageRepository) Create(tx *gorm.DB, message *models.Message) (*models.Message, error) {
 	db := r.DB
 	if tx != nil {
-		db = tx
+		db = tx // Use the provided transaction if available
 	}
 
 	if err := db.Create(&message).Error; err != nil {
@@ -22,19 +39,43 @@ func (r *MessageRepository) CreateMessage(tx *gorm.DB, message *models.Message) 
 	return message, nil
 }
 
-func (r *MessageRepository) GetPrivateConversation(senderId, receiverId string) ([]*models.Message, error) {
-	var messages []*models.Message
-	if err := r.DB.Where(
-		"(message_sender_id = ? AND message_receiver_id = ?) OR (message_receiver_id = ? AND message_sender_id = ?)",
-		senderId, receiverId, senderId, receiverId,
-	).Find(&messages).Error; err != nil {
-		return nil, err
+// endregion
+
+// region "Update" modifies the fields of a message in the database based on specified conditions
+func (r *messageRepository) UpdateExceptUpdatedAt(whereMessage *models.Message, updateMessage *models.Message, isUnscoped bool) error {
+	query := r.DB.Model(&models.Message{}).Where(whereMessage)
+
+	if isUnscoped {
+		query = query.Unscoped() // Include soft-deleted messages in the update
 	}
 
-	return messages, nil
+	return query.UpdateColumns(updateMessage).Error
 }
 
-func (r *MessageRepository) GetMessageHistoryByRoomID(roomId string) ([]*models.Message, error) {
+// endregion
+
+// region "Delete" removes a message from the database
+func (r *messageRepository) Delete(whereMessage *models.Message) error {
+	return r.DB.Delete(whereMessage).Error
+}
+
+// endregion
+
+// region "ReadMessageByRoomId" marks a message as read for a specific user and room
+func (r *messageRepository) ReadMessageByRoomId(connectedUserID, roomId string, messageId *string) error {
+	query := r.DB.Model(&models.Message{}).Unscoped().Where("sender_id != ? AND room_id = ?", connectedUserID, roomId)
+
+	if messageId != nil {
+		query = query.Where("message_id = ?", *messageId) // Filter by message ID if provided
+	}
+
+	return query.UpdateColumns(&models.Message{MessageReadStatus: types.Readed}).Error
+}
+
+// endregion
+
+// region "GetMessageHistoryByRoomID" retrieves the message history for a specific room
+func (r *messageRepository) GetMessageHistoryByRoomID(roomId uuid.UUID) ([]*models.Message, error) {
 	var messages []*models.Message
 	if err := r.DB.Unscoped().
 		Select(`
@@ -48,7 +89,7 @@ func (r *MessageRepository) GetMessageHistoryByRoomID(roomId string) ([]*models.
 			"deletedAt",
 			CASE WHEN "deletedAt" IS NOT NULL THEN '' ELSE message END as message
 		`).
-		Where("room_id = ?", roomId).
+		Where(&models.Message{RoomID: roomId}).
 		Order(`"createdAt" ASC`).
 		Find(&messages).Error; err != nil {
 		return nil, err
@@ -57,24 +98,11 @@ func (r *MessageRepository) GetMessageHistoryByRoomID(roomId string) ([]*models.
 	return messages, nil
 }
 
-func (r *MessageRepository) DeleteById(messageId string) error {
-	return r.DB.Delete(&models.Message{}, "message_id = ?", messageId).Error
+// endregion
+
+// region "GetDB" returns the underlying gorm.DB instance
+func (r *messageRepository) GetDB() *gorm.DB {
+	return r.DB // Return the database instance
 }
 
-func (r *MessageRepository) UpdateMessageByIdBody(messageId, message string) error {
-	return r.DB.Model(&models.Message{}).Where("message_id = ?", messageId).Update("message", message).Error
-}
-
-func (r *MessageRepository) StarMessageById(messageId string) error {
-	return r.DB.Model(&models.Message{}).Where("message_id = ?", messageId).UpdateColumns(&models.Message{MessageType: types.StarredText}).Error
-}
-
-func (r *MessageRepository) ReadMessageByRoomId(connectedUserID, roomId string, messageId *string) error {
-	query := r.DB.Model(&models.Message{}).Unscoped().Where("sender_id != ? AND room_id = ?", connectedUserID, roomId)
-
-	if messageId != nil {
-		query = query.Where("message_id = ?", *messageId)
-	}
-
-	return query.UpdateColumns(&models.Message{MessageReadStatus: types.Readed}).Error
-}
+// endregion

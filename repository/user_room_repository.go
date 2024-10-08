@@ -6,70 +6,59 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserRoomRepository struct {
+type IUserRoomRepository interface {
+	Create(tx *gorm.DB, userRoom *models.UserRoom) error
+	GetPrivateRoom(userId1, userId2 string) (string, error)
+}
+
+type userRoomRepository struct {
 	DB *gorm.DB
 }
 
-type PrivateRoom struct {
-	RoomID       uuid.UUID `json:"room_id"`
-	FriendStatus string    `json:"friend_status"`
-}
-
-// region GET PRIVATE ROOM REPOSITORY
-func (r *UserRoomRepository) GetPrivateRoom(userId1, userId2 string) (string, error) {
-	var userRooms string
-
-	//if err := r.DB.Model(&models.UserRoom{}).Debug().Select("\"USER_ROOM\".room_id").
-	//	Preload("Room", func(db *gorm.DB) *gorm.DB {
-	//		return db.Where("room_type = ?", "private")
-	//	}).Preload("User.Friend", func(db *gorm.DB) *gorm.DB {
-	//	return db.Select("friend_status")
-	//}).
-	//	Where("\"USER_ROOM\".user_id IN (?,?)", userId1, userId2).
-	//	Group("\"USER_ROOM\".room_id").
-	//	Having("COUNT(DISTINCT user_id) = 2").
-	//	Scan(&userRooms).Error; err != nil {
-	//	return nil, err
-	//}
-
-	//if err := r.DB.Model("USER_ROOM").Debug().
-	//	Select("\"USER_ROOM\".room_id, \"FRIEND\".friend_status").
-	//	Joins("JOIN \"ROOM\" ON \"USER_ROOM\".room_id = \"ROOM\".room_id").
-	//	Joins("JOIN \"USER\" ON \"USER_ROOM\".user_id = \"USER\".user_id").
-	//	Joins("LEFT JOIN \"FRIEND\" ON \"USER\".user_email = \"FRIEND\".user_mail").
-	//	Where("\"USER_ROOM\".user_id IN (?,?) AND \"ROOM\".room_type = ?", userId1, userId2, "private").
-	//	Group("\"USER_ROOM\".room_id, \"FRIEND\".friend_status").
-	//	Having("COUNT(DISTINCT \"USER_ROOM\".user_id) = 2").
-	//	Scan(&userRooms).Error; err != nil {
-	//	return nil, err
-	//}
-
-	if err := r.DB.Model(&models.UserRoom{}).
-		Select("\"USER_ROOM\".room_id").
-		Joins("JOIN \"ROOM\" ON \"USER_ROOM\".room_id = \"ROOM\".room_id").
-		Where("\"USER_ROOM\".user_id IN (?,?) AND \"ROOM\".room_type = ?", userId1, userId2, "private").
-		Group("\"USER_ROOM\".room_id").
-		Having("COUNT(DISTINCT user_id) = 2").
-		Find(&userRooms).Error; err != nil {
-		return "", err
+func NewUserRoomRepository(db *gorm.DB) IUserRoomRepository {
+	return &userRoomRepository{
+		DB: db,
 	}
-
-	return userRooms, nil
 }
 
-//endregion
-
-// region CREATE USER ROOM REPOSITORY
-func (r *UserRoomRepository) CreateUserRoom(tx *gorm.DB, userRoom *models.UserRoom) error {
+// region "Create" adds a new user room to the database
+func (r *userRoomRepository) Create(tx *gorm.DB, userRoom *models.UserRoom) error {
 	db := r.DB
 	if tx != nil {
-		db = tx
+		db = tx // Use the provided transaction if available
 	}
 
 	if err := db.Create(&userRoom).Error; err != nil {
 		return err
 	}
 	return nil
+}
+
+//endregion
+
+// region GetPrivateRoom DTO represents the structure of a private room.
+type PrivateRoom struct {
+	RoomID       uuid.UUID `json:"room_id"`
+	FriendStatus string    `json:"friend_status"`
+}
+
+// endregion
+
+// region "GetPrivateRoom" fetches the room ID of a private room for the specified user IDs
+func (r *userRoomRepository) GetPrivateRoom(userId1, userId2 string) (string, error) {
+	var userRooms string
+
+	if err := r.DB.Model(&models.UserRoom{}).
+		Select(`"USER_ROOM".room_id`).
+		Joins(`JOIN "ROOM" ON "USER_ROOM".room_id = "ROOM".room_id`).
+		Where(`"USER_ROOM".user_id IN (?,?) AND "ROOM".room_type = ?`, userId1, userId2, "private").
+		Group(`"USER_ROOM".room_id`).
+		Having("COUNT(DISTINCT user_id) = 2").
+		Find(&userRooms).Error; err != nil {
+		return "", err
+	}
+
+	return userRooms, nil
 }
 
 //endregion

@@ -1,128 +1,138 @@
 package controller
 
 import (
-	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/kwa0x2/realtime-chat-backend/service"
 	"github.com/kwa0x2/realtime-chat-backend/socket/adapter"
 	"github.com/kwa0x2/realtime-chat-backend/utils"
 	"net/http"
-	"sync"
 )
 
-type UserController struct {
-	UserService   *service.UserService
-	FriendService *service.FriendService
-	S3Service     *service.S3Service
-	SocketAdapter *adapter.SocketAdapter
+type IUserController interface {
+	UpdateUsername(ctx *gin.Context)
+	UploadProfilePhoto(ctx *gin.Context)
 }
 
+type userController struct {
+	UserService   service.IUserService
+	FriendService service.IFriendService
+	S3Service     service.IS3Service
+	SocketAdapter adapter.ISocketAdapter
+}
+
+func NewUserController(userService service.IUserService, friendService service.IFriendService, s3Service service.IS3Service, socketAdapter adapter.ISocketAdapter) IUserController {
+	return &userController{
+		UserService:   userService,
+		FriendService: friendService,
+		S3Service:     s3Service,
+		SocketAdapter: socketAdapter,
+	}
+}
+
+// region UsernameUpdateBody represents the structure of the request body for updating the username.
 type UsernameUpdateBody struct {
-	UserName string `json:"user_name"`
+	UserName string `json:"user_name"` // The new username for the user.
 }
 
-func (ctrl *UserController) UpdateUsername(ctx *gin.Context) {
+// endregion
+
+// region "UpdateUsername" handles the request to update the user's username.
+func (ctrl *userController) UpdateUsername(ctx *gin.Context) {
 	var requestBody UsernameUpdateBody
 	session := sessions.Default(ctx)
 
+	// Bind JSON request body to UsernameUpdateBody struct.
 	if err := ctx.BindJSON(&requestBody); err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
 
-	userMail := session.Get("mail")
-	if userMail == nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", "UserMail not found"))
+	// Get user session information.
+	userSessionInfo, sessionErr := utils.GetUserSessionInfo(ctx)
+	if sessionErr != nil {
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", sessionErr.Error()))
 		return
 	}
 
-	if err := ctrl.UserService.UpdateUsernameByMail(requestBody.UserName, userMail.(string)); err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "update username by mail error"))
+	// Update the user's username in the database using their email.
+	if err := ctrl.UserService.UpdateUserNameByMail(requestBody.UserName, userSessionInfo.Email); err != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error updating username by email"))
 		return
 	}
 
+	// Update the session with the new username.
 	session.Set("name", requestBody.UserName)
 	session.Save()
 
+	// Prepare data to emit to friends regarding the username update.
 	emitData := map[string]interface{}{
 		"updated_username": requestBody.UserName,
-		"user_email":       userMail.(string),
+		"user_email":       userSessionInfo.Email,
 	}
 
-	fmt.Println(emitData)
-
-	friends, err := ctrl.FriendService.GetFriends(userMail.(string), true)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "get friends error"))
+	// Emit the username update notification to friends using the socket adapter.
+	if err := ctrl.SocketAdapter.EmitToFriendsAndSentRequests("update_username", userSessionInfo.Email, emitData); err != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to emit update username notification to friends"))
 		return
 	}
 
-	var wg sync.WaitGroup
-	for _, friend := range friends {
-		wg.Add(1)
-		go func(friendEmail string) {
-			defer wg.Done()
-			fmt.Println("updateusername")
-			ctrl.SocketAdapter.EmitToNotificationRoom("update_username", friendEmail, emitData)
-		}(friend.UserMail)
-	}
-	wg.Wait()
-
-	ctx.JSON(http.StatusOK, utils.NewSuccessResponse("OK", "successfully changed"))
+	ctx.JSON(http.StatusOK, utils.NewSuccessResponse("OK", "Username successfully updated"))
 }
 
-func (ctrl *UserController) UploadProfilePicture(ctx *gin.Context) {
+// endregion
+
+// region "UploadProfilePhoto" handles the request to upload a user's profile photo.
+func (ctrl *userController) UploadProfilePhoto(ctx *gin.Context) {
+	// Retrieve the file from the form data.
 	file, header, err := ctx.Request.FormFile("file")
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Form File Error", err.Error()))
 		return
 	}
-	defer file.Close()
-
-	userMail, exists := ctx.Get("mail")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse("Unauthorized", "Authorization required"))
-		return
-	}
-
-	fileURL, err := ctrl.S3Service.UploadFile(file, header)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "file upload to s3 bucket error"))
-		return
-	}
-
-	if err := ctrl.UserService.UpdateUserPhotoByMail(fileURL, userMail.(string)); err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "update user photo by mail error"))
-		return
-	}
+	defer file.Close() // Ensure the file is closed after processing.
 
 	session := sessions.Default(ctx)
-	if session.Get("mail") != nil {
+
+	// Get user session information.
+	userSessionInfo, userSessionErr := utils.GetUserSessionInfo(ctx)
+	if userSessionErr != nil {
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", userSessionErr.Error()))
+		return
+	}
+
+	// Upload the file to the S3 bucket and retrieve the file URL.
+	fileURL, UploadErr := ctrl.S3Service.UploadFile(file, header)
+	if UploadErr != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error uploading file to S3 bucket"))
+		return
+	}
+
+	// Update the user's photo in the database using their email.
+	if UpdateErr := ctrl.UserService.UpdateUserPhotoByMail(fileURL, userSessionInfo.Email); UpdateErr != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error updating user photo"))
+		return
+	}
+
+	// Update the session with the new photo URL.
+	if session.Get("email") != nil {
 		session.Set("photo", fileURL)
 		session.Save()
 	}
 
+	// Prepare data to emit to friends regarding the photo update.
 	emitData := map[string]interface{}{
 		"updated_user_photo": fileURL,
-		"user_email":         userMail.(string),
+		"user_email":         userSessionInfo.Email,
 	}
 
-	friends, err := ctrl.FriendService.GetFriends(userMail.(string), true)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "get friends error"))
+	// Emit the photo update notification to friends using the socket adapter.
+	if EmitErr := ctrl.SocketAdapter.EmitToFriendsAndSentRequests("update_user_photo", userSessionInfo.Email, emitData); EmitErr != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to emit update user photo notification to friends"))
 		return
 	}
 
-	var wg sync.WaitGroup
-	for _, friend := range friends {
-		wg.Add(1)
-		go func(friendEmail string) {
-			defer wg.Done()
-			ctrl.SocketAdapter.EmitToNotificationRoom("update_user_photo", friendEmail, emitData)
-		}(friend.UserMail)
-	}
-	wg.Wait()
-
 	ctx.JSON(http.StatusOK, fileURL)
 }
+
+// endregion

@@ -5,80 +5,66 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserRepository struct {
+type IUserRepository interface {
+	IsFieldUnique(whereUser *models.User) bool
+	IsFieldExists(whereUser *models.User) bool
+	Create(user *models.User) (*models.User, error)
+	GetUser(whereUser *models.User) (*models.User, error)
+	Update(whereUser *models.User, updates *models.User) error
+}
+
+type userRepository struct {
 	DB *gorm.DB
 }
 
-// region IS USERNAME UNIQUE REPOSITORY
-func (r *UserRepository) IsUsernameUnique(username string) bool {
+func NewUserRepository(db *gorm.DB) IUserRepository {
+	return &userRepository{
+		DB: db,
+	}
+}
+
+// region "IsFieldUnique" checks if the specified fields in the User model are unique.
+func (r *userRepository) IsFieldUnique(whereUser *models.User) bool {
 	var count int64
-	r.DB.Where("user_name = ?", username).Count(&count)
+	r.DB.Model(&models.User{}).Where(whereUser).Count(&count)
 	return count == 0
 }
 
-//endregion
+// endregion
 
-// region IS EMAIL UNIQUE REPOSITORY
-func (r *UserRepository) IsEmailExists(email string) bool {
+// region "IsFieldExists" checks if the specified fields in the User model exist in the database.
+func (r *userRepository) IsFieldExists(whereUser *models.User) bool {
 	var count int64
-	r.DB.Model(&models.User{}).Where("user_email = ?", email).Count(&count)
+	r.DB.Model(&models.User{}).Debug().Where(whereUser).Count(&count)
 	return count > 0
 }
 
-//endregion
+// endregion
 
-// region INSERT NEW USER REPOSITORY
-func (r *UserRepository) Insert(user *models.User) (*models.User, error) {
+// region "Create" adds a new user to the database and returns the created user.
+func (r *userRepository) Create(user *models.User) (*models.User, error) {
 	if err := r.DB.Create(&user).Error; err != nil {
 		return nil, err
 	}
 	return user, nil
 }
 
-//endregion
+// endregion
 
-// region GET USER BY EMAIL REPOSITORY
-func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
+// region "GetUser" retrieves a user from the database based on the specified conditions.
+func (r *userRepository) GetUser(whereUser *models.User) (*models.User, error) {
 	var user *models.User
-	if err := r.DB.Table("USER").Where("user_email = ?", email).First(&user).Error; err != nil {
-		return nil, err
-	}
-
-	return user, nil
-}
-
-//endregion
-
-// region GET USER BY ID SERVICE
-func (r *UserRepository) GetUserById(id string) (*models.User, error) {
-	var user *models.User
-	if err := r.DB.Table("USER").Where("user_id = ?", id).First(&user).Error; err != nil {
+	if err := r.DB.Where(whereUser).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return user, nil
 }
 
-//endregion
+// endregion
 
-// region IS ID UNIQUE SERVICE
-func (r *UserRepository) IsIdUnique(id string) bool {
-	var count int64
-	r.DB.Table("USER").Where("user_id = ?", id).Count(&count)
-	return count == 0
+// region "Update" modifies the fields of a user in the database based on specified conditions.
+func (r *userRepository) Update(whereUser *models.User, updates *models.User) error {
+	return r.DB.Model(&models.User{}).Where(whereUser).Updates(updates).Error
 }
 
-//endregion
-
-func (r *UserRepository) UpdateUsernameByMail(userName, userEmail string) error {
-	if err := r.DB.Model(&models.User{}).Where("user_email = ?", userEmail).Update("user_name", userName).Error; err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *UserRepository) UpdateUserPhotoByMail(userPhoto, userEmail string) error {
-	if err := r.DB.Model(&models.User{}).Where("user_email = ?", userEmail).Update("user_photo", userPhoto).Error; err != nil {
-		return err
-	}
-	return nil
-}
+// endregion

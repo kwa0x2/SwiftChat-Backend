@@ -7,73 +7,103 @@ import (
 	"gorm.io/gorm"
 )
 
-type FriendService struct {
-	FriendRepository *repository.FriendRepository
+type IFriendService interface {
+	Create(tx *gorm.DB, friend *models.Friend) error
+	Update(tx *gorm.DB, whereFriend *models.Friend, updates *models.Friend) error
+	UpdateFriendStatusByMail(tx *gorm.DB, userEmail, userEmail2 string, friendStatus types.FriendStatus) error
+	Delete(UserEmail, UserEmail2 string) error
+	GetFriends(userEmail string, isUnFriendStatusAllow bool) ([]*models.Friend, error)
+	GetSpecificFriend(userEmail, userEmail2 string) (*models.Friend, error)
+	GetBlockedUsers(userEmail string) ([]*models.Friend, error)
+	Block(userEmail, userEmail2 string) (string, error)
+	IsBlocked(userMail, otherUserMail string) (bool, error)
 }
 
-// region INSERT NEW FRIEND SERVICE
-func (s *FriendService) Insert(tx *gorm.DB, friend *models.Friend) error {
-	existingFriend, err := s.GetFriend(friend.UserMail, friend.UserMail2)
+type friendService struct {
+	FriendRepository repository.IFriendRepository
+}
+
+func NewFriendService(friendRepository repository.IFriendRepository) IFriendService {
+	return &friendService{
+		FriendRepository: friendRepository,
+	}
+}
+
+// region "Create" adds a new friend to the database. If a friendship already exists, it updates the status
+func (s *friendService) Create(tx *gorm.DB, friend *models.Friend) error {
+	// Check if a specific friend relationship exists between the two users using the provided email addresses.
+	existingFriend, err := s.GetSpecificFriend(friend.UserMail, friend.UserMail2)
 	if err != nil {
 		return err
 	}
 
+	// If an existing friendship is found and the second user's email matches the provided friend's email,
 	if existingFriend != nil && existingFriend.UserMail == friend.UserMail2 {
-
-		if err := s.UpdateDeletedAtByMail(nil, friend.UserMail, existingFriend.UserMail, types.Friend); err != nil {
-			return err
+		// Update the status of the friendship to "Friend" (or a defined status) for the two users.
+		if updateErr := s.UpdateFriendStatusByMail(nil, friend.UserMail, existingFriend.UserMail, types.Friend); updateErr != nil {
+			return updateErr
 		}
-
 		return nil
 	}
 
-	return s.FriendRepository.Insert(tx, friend)
+	// If no existing friendship was found, create a new friend record in the repository.
+	return s.FriendRepository.Create(tx, friend)
 }
 
-//endregion
+// endregion
 
-func (s *FriendService) Update(tx *gorm.DB, filter map[string]interface{}, updates map[string]interface{}) error {
-
-	return s.FriendRepository.Update(tx, filter, updates)
+// region "Update" modifies the fields of a friend in the database based on specified conditions
+func (s *friendService) Update(tx *gorm.DB, whereFriend *models.Friend, updates *models.Friend) error {
+	return s.FriendRepository.Update(tx, whereFriend, updates)
 }
 
-func (s *FriendService) UpdateDeletedAtByMail(tx *gorm.DB, userMail, userMail2 string, friendStatus types.FriendStatus) error {
+// endregion
 
-	return s.FriendRepository.UpdateDeletedAtByMail(tx, userMail, userMail2, friendStatus)
+// region "UpdateFriendStatusByMail" updates the deletedAt field and friendStatus for given user emails
+func (s *friendService) UpdateFriendStatusByMail(tx *gorm.DB, userEmail, userEmail2 string, friendStatus types.FriendStatus) error {
+	return s.FriendRepository.UpdateFriendStatusByMail(tx, userEmail, userEmail2, friendStatus)
 }
 
-// region DELETE FRIEND BY MAIL SERVICE
-func (s *FriendService) Delete(friend *models.Friend) error {
-	return s.FriendRepository.Delete(friend)
+// endregion
+
+// region "Delete" removes a friendship between two users
+func (s *friendService) Delete(UserEmail, UserEmail2 string) error {
+	return s.FriendRepository.Delete(UserEmail, UserEmail2)
 }
 
-//endregion
+// endregion
 
-// region GET FRIENDS BY MAIL SERVICE
-func (s *FriendService) GetFriends(userMail string, isUnFriendStatusAllow bool) ([]*models.Friend, error) {
-	return s.FriendRepository.GetFriends(userMail, isUnFriendStatusAllow)
+// region "GetFriends" retrieves a list of friends for a given user email
+func (s *friendService) GetFriends(userEmail string, isUnFriendStatusAllow bool) ([]*models.Friend, error) {
+	return s.FriendRepository.GetFriends(userEmail, isUnFriendStatusAllow)
 }
 
-//endregion
+// endregion
 
-func (s *FriendService) GetFriend(userMail, userMail2 string) (*models.Friend, error) {
-	return s.FriendRepository.GetFriend(userMail, userMail2)
+// region "GetSpecificFriend" retrieves a specific friend relationship between two users
+func (s *friendService) GetSpecificFriend(userEmail, userEmail2 string) (*models.Friend, error) {
+	return s.FriendRepository.GetSpecificFriend(userEmail, userEmail2)
 }
 
-// region GET BLOCKED FRIENDS BY MAIL SERVICE
-func (s *FriendService) GetBlocked(userId string) ([]*models.Friend, error) {
-	return s.FriendRepository.GetBlocked(userId)
+// endregion
+
+// region "GetBlockedUsers" retrieves a list of blocked users for a given email
+func (s *friendService) GetBlockedUsers(userEmail string) ([]*models.Friend, error) {
+	return s.FriendRepository.GetBlockedUsers(userEmail)
 }
 
-//endregion
+// endregion
 
-// region BLOCK FRIEND BY MAIL SERVICE
-func (s *FriendService) Block(friend *models.Friend) (string, error) {
-	return s.FriendRepository.Block(friend)
+// region "Block" updates the status of a friendship to blocked
+func (s *friendService) Block(userEmail, userEmail2 string) (string, error) {
+	return s.FriendRepository.Block(userEmail, userEmail2)
 }
 
-//endregion
+// endregion
 
-func (s *FriendService) IsBlocked(userMail, otherUserMail string) (bool, error) {
+// region "IsBlocked" checks if a user is blocked by another user
+func (s *friendService) IsBlocked(userMail, otherUserMail string) (bool, error) {
 	return s.FriendRepository.IsBlocked(userMail, otherUserMail)
 }
+
+// endregion

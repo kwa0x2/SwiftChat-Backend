@@ -3,111 +3,148 @@ package service
 import (
 	"github.com/kwa0x2/realtime-chat-backend/models"
 	"github.com/kwa0x2/realtime-chat-backend/repository"
+	"github.com/kwa0x2/realtime-chat-backend/types"
 	"gorm.io/gorm"
 )
 
-type RequestService struct {
-	RequestRepository *repository.RequestRepository
-	FriendService     *FriendService
-	UserService       *UserService
+type IRequestService interface {
+	Create(tx *gorm.DB, request *models.Request) error
+	Update(tx *gorm.DB, whereRequest *models.Request, updateRequest *models.Request) error
+	DeleteByEmail(tx *gorm.DB, receiverEmail, senderEmail string) error
+	GetRequests(receiverEmail string) ([]*models.Request, error)
+	GetSentRequests(senderEmail string) ([]*models.Request, error)
+	UpdateFriendshipRequest(receiverEmail, senderEmail string, requestStatus types.RequestStatus) (map[string]interface{}, error)
+	InsertAndReturnUser(request *models.Request) (map[string]interface{}, error)
 }
 
-// region INSERT NEW REQUEST SERVICE
-func (s *RequestService) Insert(tx *gorm.DB, request *models.Request) error {
-
-	return s.RequestRepository.Insert(tx, request)
+type requestService struct {
+	RequestRepository repository.IRequestRepository
+	FriendService     IFriendService
+	UserService       IUserService
 }
 
-//endregion
-
-// region GET COMING REQUEST BY RECEIVER EMAIL SERVICE
-func (s *RequestService) GetComingRequests(receiverMail string) ([]*models.Request, error) {
-	return s.RequestRepository.GetComingRequests(receiverMail)
+func NewRequestService(requestRepository repository.IRequestRepository, friendService IFriendService, userService IUserService) IRequestService {
+	return &requestService{
+		RequestRepository: requestRepository,
+		FriendService:     friendService,
+		UserService:       userService,
+	}
 }
 
-//endregion
-
-// region UPDATE BY MAIL SERVICE
-func (s *RequestService) Update(tx *gorm.DB, filter map[string]interface{}, updates map[string]interface{}) error {
-
-	return s.RequestRepository.Update(tx, filter, updates)
-}
-
-//endregion
-
-// region DELETE BY MAIL SERVICE
-func (s *RequestService) Delete(tx *gorm.DB, request *models.Request) error {
-	return s.RequestRepository.Delete(tx, request)
+// region "Create" adds a new request to the database
+func (s *requestService) Create(tx *gorm.DB, request *models.Request) error {
+	return s.RequestRepository.Create(tx, request)
 }
 
 //endregion
 
-// region UPDATE REQUEST STATUS and DELETE AND IF STATUS ACCEPTED INSERT NEW FRIENDSHIP IN FRIEND WITH TRANSACTION SERVICE
-func (s *RequestService) UpdateFriendshipRequest(request *models.Request) (map[string]interface{}, error) {
-	tx := s.RequestRepository.DB.Begin()
+// region "Update" modifies the fields of a request in the database based on specified conditions
+func (s *requestService) Update(tx *gorm.DB, whereRequest *models.Request, updateRequest *models.Request) error {
+	return s.RequestRepository.Update(tx, whereRequest, updateRequest)
+}
+
+//endregion
+
+// region "DeleteByEmail" removes a request based on the provided email information.
+func (s *requestService) DeleteByEmail(tx *gorm.DB, receiverEmail, senderEmail string) error {
+	whereRequest := &models.Request{
+		ReceiverMail: receiverEmail,
+		SenderMail:   senderEmail,
+	}
+
+	return s.RequestRepository.Delete(tx, whereRequest)
+}
+
+//endregion
+
+// region "GetRequests" retrieves requests for a given receiver email
+func (s *requestService) GetRequests(receiverEmail string) ([]*models.Request, error) {
+	return s.RequestRepository.GetRequests(receiverEmail)
+}
+
+//endregion
+
+// region "GetSentRequests" retrieves sent requests for a given sender email
+func (s *requestService) GetSentRequests(senderEmail string) ([]*models.Request, error) {
+	return s.RequestRepository.GetSentRequests(senderEmail)
+}
+
+//endregion
+
+// region "UpdateFriendshipRequest" updates the status of a friendship request and manages friendship creation
+func (s *requestService) UpdateFriendshipRequest(receiverEmail, senderEmail string, requestStatus types.RequestStatus) (map[string]interface{}, error) {
+	tx := s.RequestRepository.GetDB().Begin() // Start a new database transaction
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
 
-	filter := map[string]interface{}{
-		"receiver_mail": request.ReceiverMail,
-		"sender_mail":   request.SenderMail,
+	// Prepare the request that needs to be updated
+	whereRequest := &models.Request{
+		ReceiverMail: receiverEmail,
+		SenderMail:   senderEmail,
 	}
 
-	updates := map[string]interface{}{
-		"request_status": request.RequestStatus,
+	// Create an updated request with the new status
+	updateRequest := &models.Request{
+		RequestStatus: requestStatus,
 	}
 
-	if err := s.Update(tx, filter, updates); err != nil {
-		tx.Rollback()
+	// Update the friendship request status in the database
+	if err := s.Update(tx, whereRequest, updateRequest); err != nil {
+		tx.Rollback() // Rollback the transaction on error
 		return nil, err
 	}
 
-	if err := s.Delete(tx, request); err != nil {
-		tx.Rollback()
+	// Delete the request from the database after handling the response
+	if err := s.DeleteByEmail(tx, receiverEmail, senderEmail); err != nil {
+		tx.Rollback() // Rollback the transaction on error
 		return nil, err
 	}
 
-	userData, err := s.UserService.GetByEmail(request.ReceiverMail)
+	// Retrieve user data of the receiver for the response
+	userData, err := s.UserService.GetByEmail(receiverEmail)
 	if err != nil {
-		tx.Rollback()
+		tx.Rollback() // Rollback the transaction on error
 		return nil, err
 	}
 
 	var result map[string]interface{}
-	if request.RequestStatus == "accepted" {
+	if requestStatus == "accepted" {
+		// If the request is accepted, create a friendship entry in the database
 		friend := &models.Friend{
-			UserMail:     request.SenderMail,
-			UserMail2:    request.ReceiverMail,
+			UserMail:     senderEmail,
+			UserMail2:    receiverEmail,
 			FriendStatus: "friend",
 		}
 
-		if err := s.FriendService.Insert(tx, friend); err != nil {
-			tx.Rollback()
-			return nil, err
+		if createErr := s.FriendService.Create(tx, friend); createErr != nil {
+			tx.Rollback() // Rollback the transaction on error
+			return nil, createErr
 		}
 
+		// Prepare the response data for accepted request
 		result = map[string]interface{}{
 			"status": "accepted",
 			"user_data": map[string]interface{}{
-				"friend_mail": request.ReceiverMail,
-				"user_name":   userData.UserName,
-				"user_photo":  userData.UserPhoto,
+				"friend_mail": receiverEmail,      // Friend's email
+				"user_name":   userData.UserName,  // User's name
+				"user_photo":  userData.UserPhoto, // User's photo
 			},
 		}
 
 	} else {
+		// Prepare the response data for declined request
 		result = map[string]interface{}{
-			"status": request.RequestStatus,
+			"status": requestStatus, // Current status of the request
 			"user_data": map[string]interface{}{
-				"user_name": userData.UserName,
+				"user_name": userData.UserName, // User's name
 			},
 		}
 	}
 
-	if err := tx.Commit().Error; err != nil {
+	if commitErr := tx.Commit().Error; commitErr != nil {
 		tx.Rollback()
-		return nil, err
+		return nil, commitErr
 	}
 
 	return result, nil
@@ -115,32 +152,39 @@ func (s *RequestService) UpdateFriendshipRequest(request *models.Request) (map[s
 
 //endregion
 
-func (s *RequestService) InsertAndReturnUser(request *models.Request) (map[string]interface{}, error) {
-	tx := s.RequestRepository.DB.Begin()
+// region "InsertAndReturnUser" adds a new request and returns associated user data.
+func (s *requestService) InsertAndReturnUser(request *models.Request) (map[string]interface{}, error) {
+	tx := s.RequestRepository.GetDB().Begin() // Start a new database transaction
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
 
-	if err := s.Insert(tx, request); err != nil {
-		tx.Rollback()
+	// Create the new request in the database
+	if err := s.Create(tx, request); err != nil {
+		tx.Rollback() // Rollback the transaction on error
 		return nil, err
 	}
 
+	// Retrieve user data of the sender for the response
 	userData, err := s.UserService.GetByEmail(request.SenderMail)
 	if err != nil {
-		tx.Rollback()
+		tx.Rollback() // Rollback the transaction on error
 		return nil, err
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		return nil, err
+	// Commit the transaction if everything was successful
+	if commitErr := tx.Commit().Error; commitErr != nil {
+		return nil, commitErr
 	}
 
+	// Prepare the response data with sender's information
 	result := map[string]interface{}{
-		"sender_mail": request.SenderMail,
-		"user_name":   userData.UserName,
-		"user_photo":  userData.UserPhoto,
+		"sender_mail": request.SenderMail, // Sender's email
+		"user_name":   userData.UserName,  // User's name
+		"user_photo":  userData.UserPhoto, // User's photo
 	}
 
 	return result, nil
 }
+
+// endregion

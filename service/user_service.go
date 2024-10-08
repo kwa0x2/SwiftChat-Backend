@@ -5,56 +5,93 @@ import (
 	"github.com/kwa0x2/realtime-chat-backend/repository"
 )
 
-type UserService struct {
-	UserRepository *repository.UserRepository
+type IUserService interface {
+	IsUsernameUnique(userName string) bool
+	IsIdUnique(userId string) bool
+	IsEmailExists(email string) bool
+	Create(user *models.User) (*models.User, error)
+	GetByEmail(userEmail string) (*models.User, error)
+	GetUserById(userId string) (*models.User, error)
+	UpdateUserNameByMail(userName, userEmail string) error
+	UpdateUserPhotoByMail(userPhoto, userEmail string) error
 }
 
-// region IS USERNAME UNIQUE SERVICE
-func (s *UserService) IsUsernameUnique(username string) bool {
-	return s.UserRepository.IsUsernameUnique(username)
+type userService struct {
+	UserRepository repository.IUserRepository
 }
 
-//endregion
-
-// region IS EMAIL UNIQUE SERVICE
-func (s *UserService) IsEmailExists(email string) bool {
-	return s.UserRepository.IsEmailExists(email)
+func NewUserService(userRepo repository.IUserRepository) IUserService {
+	return &userService{
+		UserRepository: userRepo,
+	}
 }
 
-//endregion
-
-// region INSERT NEW USER SERVICE
-func (s *UserService) Insert(user *models.User) (*models.User, error) {
-	return s.UserRepository.Insert(user)
+// region "IsUsernameUnique" checks if the given username is unique
+func (s *userService) IsUsernameUnique(userName string) bool {
+	return s.UserRepository.IsFieldUnique(&models.User{UserName: userName})
 }
 
-//endregion
+// endregion
 
-// region GET USER BY EMAIL SERVICE
-func (s *UserService) GetByEmail(email string) (*models.User, error) {
-	return s.UserRepository.GetByEmail(email)
+// region "IsIdUnique" checks if the given user ID is unique
+func (s *userService) IsIdUnique(userId string) bool {
+	return s.UserRepository.IsFieldUnique(&models.User{UserID: userId})
 }
 
-//endregion
+// endregion
 
-// region GET USER BY ID SERVICE
-func (s *UserService) GetUserById(id string) (*models.User, error) {
-	return s.UserRepository.GetUserById(id)
+// region "IsEmailExists" checks if the given email already exists in the database
+func (s *userService) IsEmailExists(email string) bool {
+	return s.UserRepository.IsFieldExists(&models.User{UserEmail: email})
 }
 
-//endregion
+// endregion
 
-// region IS ID UNIQUE SERVICE
-func (s *UserService) IsIdUnique(id string) bool {
-	return s.UserRepository.IsIdUnique(id)
+// region "Create" adds a new user to the database
+func (s *userService) Create(user *models.User) (*models.User, error) {
+	return s.UserRepository.Create(user)
 }
 
-//endregion
+// endregion
 
-func (s *UserService) UpdateUsernameByMail(userName, userEmail string) error {
-	return s.UserRepository.UpdateUsernameByMail(userName, userEmail)
+// region "GetByEmail" retrieves a user from the database by their email
+func (s *userService) GetByEmail(userEmail string) (*models.User, error) {
+	return s.UserRepository.GetUser(&models.User{UserEmail: userEmail})
 }
 
-func (s *UserService) UpdateUserPhotoByMail(userPhoto, userEmail string) error {
-	return s.UserRepository.UpdateUserPhotoByMail(userPhoto, userEmail)
+// endregion
+
+// region "GetUserById" retrieves a user from the database by their ID
+func (s *userService) GetUserById(userId string) (*models.User, error) {
+	return s.UserRepository.GetUser(&models.User{UserID: userId})
 }
+
+// endregion
+
+// region "UpdateUserNameByMail" updates the user's name based on their email
+func (s *userService) UpdateUserNameByMail(userName, userEmail string) error {
+	whereUser := &models.User{
+		UserEmail: userEmail, // User to find based on email.
+	}
+	updates := &models.User{
+		UserName: userName, // New username to set.
+	}
+
+	return s.UserRepository.Update(whereUser, updates)
+}
+
+// endregion
+
+// region "UpdateUserPhotoByMail" updates the user's photo based on their email
+func (s *userService) UpdateUserPhotoByMail(userPhoto, userEmail string) error {
+	whereUser := &models.User{
+		UserEmail: userEmail, // User to find based on email.
+	}
+	updates := &models.User{
+		UserPhoto: userPhoto, // New photo URL to set.
+	}
+
+	return s.UserRepository.Update(whereUser, updates)
+}
+
+// endregion
