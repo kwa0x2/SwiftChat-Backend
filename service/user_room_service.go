@@ -6,20 +6,31 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserRoomService struct {
-	UserRoomRepository *repository.UserRoomRepository
+type IUserRoomService interface {
+	Create(tx *gorm.DB, userRoom *models.UserRoom) error
+	GetPrivateRoom(userId1, userId2 string) (string, error)
 }
 
-// region GET PRIVATE ROOM SERVICE
-func (s *UserRoomService) GetPrivateRoom(userId1, userId2 string) (string, error) {
-	return s.UserRoomRepository.GetPrivateRoom(userId1, userId2)
+type userRoomService struct {
+	UserRoomRepository repository.IUserRoomRepository
+}
+
+func NewUserRoomService(UserRoomRepository repository.IUserRoomRepository) IUserRoomService {
+	return &userRoomService{
+		UserRoomRepository: UserRoomRepository,
+	}
+}
+
+// region "Create" adds a new user room to the database
+func (s *userRoomService) Create(tx *gorm.DB, userRoom *models.UserRoom) error {
+	return s.UserRoomRepository.Create(tx, userRoom)
 }
 
 //endregion
 
-// region CREATE USER ROOM SERVICE
-func (s *UserRoomService) CreateUserRoom(tx *gorm.DB, userRoom *models.UserRoom) error {
-	return s.UserRoomRepository.CreateUserRoom(tx, userRoom)
+// region "GetPrivateRoom" fetches the room ID of a private room for the specified user IDs
+func (s *userRoomService) GetPrivateRoom(userId1, userId2 string) (string, error) {
+	return s.UserRoomRepository.GetPrivateRoom(userId1, userId2)
 }
 
 //endregion

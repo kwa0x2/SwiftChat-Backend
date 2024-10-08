@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/google/uuid"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -13,28 +14,34 @@ type IMessageController interface {
 }
 
 type messageController struct {
-	messageService *service.MessageService
+	MessageService service.IMessageService
 }
 
-func NewMessageController(messageService *service.MessageService) IMessageController {
+func NewMessageController(messageService service.IMessageService) IMessageController {
 	return &messageController{
-		messageService: messageService,
+		MessageService: messageService,
 	}
 }
 
+// region MessageHistoryBody defines the structure for the request body to get message history.
 type MessageHistoryBody struct {
-	RoomID string `json:"room_id"`
+	RoomID uuid.UUID `json:"room_id"` // Unique identifier for the chat room.
 }
 
+// endregion
+
+// region "GetMessageHistory" handles the request to retrieve message history for a specific room.
 func (ctrl *messageController) GetMessageHistory(ctx *gin.Context) {
 	var messageHistoryBody MessageHistoryBody
 
+	// Bind JSON request body to the MessageHistoryBody struct.
 	if err := ctx.BindJSON(&messageHistoryBody); err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
 
-	messageHistoryData, err := ctrl.messageService.GetMessageHistoryByRoomID(messageHistoryBody.RoomID)
+	// Retrieve message history data using the provided room ID.
+	messageHistoryData, err := ctrl.MessageService.GetMessageHistoryByRoomID(messageHistoryBody.RoomID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error retrieving message history by room id."))
 		return
@@ -42,3 +49,5 @@ func (ctrl *messageController) GetMessageHistory(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, utils.NewGetResponse(len(messageHistoryData), messageHistoryData))
 }
+
+// endregion

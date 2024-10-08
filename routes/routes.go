@@ -49,9 +49,9 @@ func FriendRoute(router *gin.Engine, friendController controller.IFriendControll
 func RequestRoute(router *gin.Engine, requestController controller.IRequestController) {
 	requestRoutes := router.Group("/api/v1/request")
 	{
-		requestRoutes.POST("", requestController.SendFriend)       // send friend req
-		requestRoutes.GET("", requestController.GetComingRequests) // get coming req
-		requestRoutes.PATCH("", requestController.PatchUpdateRequest)
+		requestRoutes.POST("", requestController.SendFriend) // send friend req
+		requestRoutes.GET("", requestController.GetRequests) // get coming req
+		requestRoutes.PATCH("", requestController.Patch)
 
 	}
 }
@@ -64,7 +64,7 @@ func RoomRoute(router *gin.Engine, roomController controller.IRoomController) {
 	}
 }
 
-func SetupSocketIO(router *gin.Engine, server *socket.Server, socketAdapter *adapter.SocketAdapter) {
+func SetupSocketIO(router *gin.Engine, server *socket.Server, socketAdapter adapter.ISocketAdapter) {
 	socketAdapter.HandleConnection()
 
 	router.GET("socket.io/*any", middlewares.SessionMiddleware(), gin.WrapH(server.ServeHandler(nil)))

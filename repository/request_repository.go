@@ -2,18 +2,35 @@ package repository
 
 import (
 	"github.com/kwa0x2/realtime-chat-backend/models"
+	"github.com/kwa0x2/realtime-chat-backend/types"
 	"gorm.io/gorm"
 )
 
-type RequestRepository struct {
+type IRequestRepository interface {
+	Create(tx *gorm.DB, request *models.Request) error
+	Update(tx *gorm.DB, whereRequest *models.Request, updateRequest *models.Request) error
+	Delete(tx *gorm.DB, whereRequest *models.Request) error
+	GetRequests(receiverEmail string) ([]*models.Request, error)
+	GetSentRequests(senderEmail string) ([]*models.Request, error)
+	InsertAndReturnUser(request *models.Request) (*models.Request, error)
+	GetDB() *gorm.DB
+}
+
+type requestRepository struct {
 	DB *gorm.DB
 }
 
-// region INSERT NEW REQUEST REPOSITORY
-func (r *RequestRepository) Insert(tx *gorm.DB, request *models.Request) error {
+func NewRequestRepository(db *gorm.DB) IRequestRepository {
+	return &requestRepository{
+		DB: db,
+	}
+}
+
+// region "Create" adds a new request to the database
+func (r *requestRepository) Create(tx *gorm.DB, request *models.Request) error {
 	db := r.DB
 	if tx != nil {
-		db = tx
+		db = tx // Use the provided transaction if available
 	}
 
 	if err := db.Create(&request).Error; err != nil {
@@ -24,12 +41,57 @@ func (r *RequestRepository) Insert(tx *gorm.DB, request *models.Request) error {
 
 //endregion
 
-// region GET COMING REQUEST BY RECEIVER EMAIL REPOSITORY
-func (r *RequestRepository) GetComingRequests(receiverMail string) ([]*models.Request, error) {
+// region "Update" modifies the fields of a request in the database based on specified conditions
+func (r *requestRepository) Update(tx *gorm.DB, whereRequest *models.Request, updateRequest *models.Request) error {
+	db := r.DB
+	if tx != nil {
+		db = tx
+	}
+
+	result := db.Model(&models.Request{}).Where(whereRequest).Updates(updateRequest)
+
+	if result.Error != nil {
+		return result.Error // Return error if update fails
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound // Return an error if no records were updated
+	}
+
+	return nil
+}
+
+//endregion
+
+// region "Delete" removes a request from the database
+func (r *requestRepository) Delete(tx *gorm.DB, whereRequest *models.Request) error {
+	db := r.DB
+	if tx != nil {
+		db = tx
+	}
+
+	result := db.Where(whereRequest).
+		Delete(&models.Request{})
+
+	if result.Error != nil {
+		return result.Error // Return error if deletion fails
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound // Return an error if no records were deleted
+	}
+
+	return nil
+}
+
+//endregion
+
+// region "GetRequests" retrieves pending requests for a given receiver email.
+func (r *requestRepository) GetRequests(receiverEmail string) ([]*models.Request, error) {
 	var requests []*models.Request
 
 	if err := r.DB.
-		Where("receiver_mail = ? AND request_status = ?", receiverMail, "pending").
+		Where(&models.Request{ReceiverMail: receiverEmail, RequestStatus: types.Pending}).
 		Preload("User").
 		Find(&requests).Error; err != nil {
 		return nil, err
@@ -38,55 +100,25 @@ func (r *RequestRepository) GetComingRequests(receiverMail string) ([]*models.Re
 	return requests, nil
 }
 
-//endregion
+// endregion
 
-// region UPDATE BY MAIL REPOSITORY
-func (r *RequestRepository) Update(tx *gorm.DB, filter map[string]interface{}, updates map[string]interface{}) error {
-	db := r.DB
-	if tx != nil {
-		db = tx
+// region "GetSentRequests" retrieves sent requests for a given sender email
+func (r *requestRepository) GetSentRequests(senderEmail string) ([]*models.Request, error) {
+	var requests []*models.Request
+
+	if err := r.DB.
+		Where(&models.Request{SenderMail: senderEmail, RequestStatus: types.Pending}).
+		Find(&requests).Error; err != nil {
+		return nil, err
 	}
 
-	result := db.Model(&models.Request{}).Where(filter).Updates(updates)
-
-	if result.Error != nil {
-		return result.Error
-	}
-
-	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-
-	return nil
+	return requests, nil
 }
 
-//endregion
+// endregion
 
-// region DELETE BY MAIL REPOSITORY
-func (r *RequestRepository) Delete(tx *gorm.DB, request *models.Request) error {
-	db := r.DB
-	if tx != nil {
-		db = tx
-	}
-
-	result := db.Model(&models.Request{}).
-		Where("receiver_mail = ? AND sender_mail = ?", request.ReceiverMail, request.SenderMail).
-		Delete(&models.Request{})
-
-	if result.Error != nil {
-		return result.Error
-	}
-
-	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-
-	return nil
-}
-
-//endregion
-
-func (r *RequestRepository) InsertAndReturnUser(request *models.Request) (*models.Request, error) {
+// region "InsertAndReturnUser" creates a new request and returns the associated user.
+func (r *requestRepository) InsertAndReturnUser(request *models.Request) (*models.Request, error) {
 	var requestData *models.Request
 
 	if err := r.DB.Create(request).Preload("User").Find(&requestData).Error; err != nil {
@@ -95,3 +127,12 @@ func (r *RequestRepository) InsertAndReturnUser(request *models.Request) (*model
 
 	return requestData, nil
 }
+
+// endregion
+
+// region "GetDB" returns the underlying gorm.DB instance
+func (r *requestRepository) GetDB() *gorm.DB {
+	return r.DB // Return the database instance
+}
+
+// endregion

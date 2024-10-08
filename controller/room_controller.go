@@ -14,47 +14,55 @@ type IRoomController interface {
 }
 
 type roomController struct {
-	roomService     *service.RoomService
-	userRoomService *service.UserRoomService
-	userService     *service.UserService
-	friendService   *service.FriendService
+	RoomService     service.IRoomService
+	UserRoomService service.IUserRoomService
+	UserService     service.IUserService
+	FriendService   service.IFriendService
 }
 
-func NewRoomController(roomService *service.RoomService, userRoomService *service.UserRoomService, userService *service.UserService, friendService *service.FriendService) IRoomController {
+func NewRoomController(roomService service.IRoomService, userRoomService service.IUserRoomService, userService service.IUserService, friendService service.IFriendService) IRoomController {
 	return &roomController{
-		roomService:     roomService,
-		userRoomService: userRoomService,
-		userService:     userService,
-		friendService:   friendService,
+		RoomService:     roomService,
+		UserRoomService: userRoomService,
+		UserService:     userService,
+		FriendService:   friendService,
 	}
 }
 
+// region ActionBody represents the structure of the request body for certain actions.
 type ActionBody struct {
 	Email  string              `json:"email"`
 	Status types.RequestStatus `json:"status"`
 }
 
+// endregion
+
+// region "GetOrCreatePrivateRoom" handles the request to retrieve or create a private chat room.
 func (ctrl *roomController) GetOrCreatePrivateRoom(ctx *gin.Context) {
 	var actionBody ActionBody
 
+	// Bind JSON request body to ActionBody struct.
 	if err := ctx.BindJSON(&actionBody); err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
 
-	userSessionInfo, sessionErr := utils.GetUserSessionInfo(ctx)
-	if sessionErr != nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", sessionErr.Error()))
+	// Get user session information.
+	userSessionInfo, userSessionErr := utils.GetUserSessionInfo(ctx)
+	if userSessionErr != nil {
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", userSessionErr.Error()))
 		return
 	}
 
-	user, userErr := ctrl.userService.GetByEmail(actionBody.Email)
+	// Fetch the user by email to find the other participant in the chat.
+	user, userErr := ctrl.UserService.GetByEmail(actionBody.Email)
 	if userErr != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Errors", "Error retrieving user by email"))
 		return
 	}
 
-	room, roomErr := ctrl.userRoomService.GetPrivateRoom(userSessionInfo.ID, user.UserID)
+	// Check if a private room already exists between the current user and the fetched user.
+	room, roomErr := ctrl.UserRoomService.GetPrivateRoom(userSessionInfo.ID, user.UserID)
 	if roomErr != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error retrieving private room"))
 		return
@@ -62,15 +70,17 @@ func (ctrl *roomController) GetOrCreatePrivateRoom(ctx *gin.Context) {
 
 	var roomId string
 
+	// If no room exists, create a new private room and add users to it.
 	if room == "" {
-		newRoomId, newRoomErr := ctrl.roomService.CreateAndAddUsers(userSessionInfo.ID, user.UserID, "private")
+		newRoomId, newRoomErr := ctrl.RoomService.CreateAndAddUsers(userSessionInfo.ID, user.UserID, "private")
 		if newRoomErr != nil {
+			// If there's an error creating the room, return an internal server error response.
 			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error creating and adding users to room"))
 			return
 		}
-		roomId = newRoomId
+		roomId = newRoomId // Set the new room ID.
 	} else {
-		roomId = room
+		roomId = room // Use the existing room ID.
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
@@ -78,14 +88,19 @@ func (ctrl *roomController) GetOrCreatePrivateRoom(ctx *gin.Context) {
 	})
 }
 
+// endregion
+
+// region "GetChatList" handles the request to retrieve the user's chat list.
 func (ctrl *roomController) GetChatList(ctx *gin.Context) {
+	// Get user session information.
 	userSessionInfo, err := utils.GetUserSessionInfo(ctx)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", err.Error()))
 		return
 	}
 
-	chatListData, chatListErr := ctrl.roomService.GetChatList(userSessionInfo.ID, userSessionInfo.Email)
+	// Fetch the user's chat list using their session information.
+	chatListData, chatListErr := ctrl.RoomService.GetChatList(userSessionInfo.ID, userSessionInfo.Email)
 	if chatListErr != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Errors", "Error retrieving chat list"))
 		return
@@ -93,3 +108,5 @@ func (ctrl *roomController) GetChatList(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, utils.NewGetResponse(len(chatListData), chatListData))
 }
+
+// endregion

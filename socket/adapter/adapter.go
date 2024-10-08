@@ -4,31 +4,46 @@ import (
 	"fmt"
 	"github.com/kwa0x2/realtime-chat-backend/service"
 	"github.com/kwa0x2/realtime-chat-backend/socket/gateway"
-	"github.com/zishang520/engine.io/utils"
 	"github.com/zishang520/socket.io/socket"
 	"sync"
 )
 
-type SocketAdapter struct {
-	Gateway          *gateway.SocketGateway
+type ISocketAdapter interface {
+	HandleConnection()
+	EmitToFriendsAndSentRequests(event, userEmail string, emitData interface{}) error
+}
+
+type socketAdapter struct {
+	Gateway          gateway.ISocketGateway
 	onlineUserEmails []string
-	MessageService   *service.MessageService
-	FriendService    *service.FriendService
+	MessageService   service.IMessageService
+	FriendService    service.IFriendService
+	RequestService   service.IRequestService
 	mux              sync.RWMutex
 }
 
-func (adapter *SocketAdapter) HandleConnection() {
+func NewSocketAdapter(gateway gateway.ISocketGateway, messageService service.IMessageService, friendService service.IFriendService, requestService service.IRequestService) ISocketAdapter {
+	return &socketAdapter{
+		Gateway:        gateway,
+		MessageService: messageService,
+		FriendService:  friendService,
+		RequestService: requestService,
+	}
+}
+
+// region "HandleConnection" manages user connections
+func (adapter *socketAdapter) HandleConnection() {
 	adapter.Gateway.OnConnection(func(socketio *socket.Socket) {
 		ctx := socketio.Request().Context()
 		connectedUserID := ctx.Value("id").(string)
-		connectedUserMail := ctx.Value("mail").(string)
+		connectedUserMail := ctx.Value("email").(string)
 		fmt.Println(connectedUserMail, " is  online")
 
 		if !adapter.emailExists(connectedUserMail) {
 			adapter.onlineUserEmails = append(adapter.onlineUserEmails, connectedUserMail)
 		}
 
-		adapter.broadcastOnlineUsers()
+		adapter.Gateway.Emit("onlineUsers", adapter.onlineUserEmails) // Broadcast online users
 
 		socketio.On("disconnect", func(...any) {
 			adapter.handleDisconnect(connectedUserMail)
@@ -59,27 +74,52 @@ func (adapter *SocketAdapter) HandleConnection() {
 	})
 }
 
-func (adapter *SocketAdapter) handleJoinRoom(socketio *socket.Socket, roomData ...any) {
-	roomId, ok := roomData[0].(string)
-	if !ok {
-		utils.Log().Error(`socket message type error socketid: %s `, socketio.Id())
-		return
+// endregion
+
+// region "EmitToFriendsAndSentRequests" sends an event to all friends and sent requests of the specified user with the provided data.
+func (adapter *socketAdapter) EmitToFriendsAndSentRequests(event, userEmail string, emitData interface{}) error {
+	// Retrieve the list of friends for the given userEmail.
+	friends, err := adapter.FriendService.GetFriends(userEmail, true)
+	if err != nil {
+		return err
 	}
-	adapter.JoinRoom(socketio, roomId)
+
+	requests, ReqErr := adapter.RequestService.GetSentRequests(userEmail)
+	if ReqErr != nil {
+		return ReqErr
+	}
+
+	emailSet := make(map[string]struct{})
+
+	// Add friends' emails to the map.
+	for _, friend := range friends {
+		emailSet[friend.UserMail] = struct{}{}
+	}
+
+	// Add requests' sender emails to the map.
+	for _, request := range requests {
+		emailSet[request.ReceiverMail] = struct{}{}
+	}
+
+	// Prepare a WaitGroup to synchronize goroutines.
+	var wg sync.WaitGroup
+	for email := range emailSet {
+		wg.Add(1) // Increment the WaitGroup counter.
+		go func(email string) {
+			defer wg.Done() // Decrement the counter when the goroutine completes.
+			// Emit the event to the friend's notification room with the provided data.
+			adapter.Gateway.EmitToNotificationRoom(event, email, emitData)
+		}(email) // Pass the unique email to the goroutine.
+	}
+	wg.Wait() // Wait for all goroutines to finish.
+
+	return nil // Return nil indicating success.
 }
 
-func (adapter *SocketAdapter) JoinRoom(socketio *socket.Socket, room string) {
-	adapter.Gateway.JoinRoom(socketio, room)
-	utils.Log().Info("User %s joined room %s", socketio.Id(), room)
-}
+// endregion
 
-func (adapter *SocketAdapter) broadcastOnlineUsers() {
-
-	adapter.Gateway.Emit("onlineUsers", adapter.onlineUserEmails)
-
-}
-
-func (adapter *SocketAdapter) emailExists(email string) bool {
+// region "emailExists" checks if an email is already in the online user list
+func (adapter *socketAdapter) emailExists(email string) bool {
 	for _, existingEmail := range adapter.onlineUserEmails {
 		if existingEmail == email {
 			return true
@@ -88,17 +128,4 @@ func (adapter *SocketAdapter) emailExists(email string) bool {
 	return false
 }
 
-func (adapter *SocketAdapter) handleDisconnect(email string) {
-
-	for i, existingEmail := range adapter.onlineUserEmails {
-		if existingEmail == email {
-			adapter.onlineUserEmails = append(adapter.onlineUserEmails[:i], adapter.onlineUserEmails[i+1:]...)
-			fmt.Println(email, " is offline")
-			adapter.Gateway.Emit("onlineUsers", adapter.onlineUserEmails)
-
-			break
-		}
-	}
-
-	adapter.broadcastOnlineUsers()
-}
+// endregion
