@@ -3,9 +3,9 @@ package controller
 import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/kwa0x2/realtime-chat-backend/service"
-	"github.com/kwa0x2/realtime-chat-backend/socket/adapter"
-	"github.com/kwa0x2/realtime-chat-backend/utils"
+	"github.com/kwa0x2/swiftchat-backend/service"
+	"github.com/kwa0x2/swiftchat-backend/socket/adapter"
+	"github.com/kwa0x2/swiftchat-backend/utils"
 	"net/http"
 )
 

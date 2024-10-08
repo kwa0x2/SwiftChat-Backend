@@ -8,7 +8,7 @@ import (
 	"github.com/gin-contrib/sessions"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kwa0x2/realtime-chat-backend/utils"
+	"github.com/kwa0x2/swiftchat-backend/utils"
 )
 
 // region "SessionMiddleware" checks if a user session exists and sets the session expiration.

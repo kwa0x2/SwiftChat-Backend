@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/kwa0x2/realtime-chat-backend/models"
-	"github.com/kwa0x2/realtime-chat-backend/repository"
+	"github.com/kwa0x2/swiftchat-backend/models"
+	"github.com/kwa0x2/swiftchat-backend/repository"
 	"gorm.io/gorm"
 )
 

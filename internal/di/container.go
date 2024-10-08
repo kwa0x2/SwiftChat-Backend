@@ -1,12 +1,12 @@
 package di
 
 import (
-	"github.com/kwa0x2/realtime-chat-backend/config"
-	"github.com/kwa0x2/realtime-chat-backend/controller"
-	"github.com/kwa0x2/realtime-chat-backend/repository"
-	"github.com/kwa0x2/realtime-chat-backend/service"
-	"github.com/kwa0x2/realtime-chat-backend/socket/adapter"
-	"github.com/kwa0x2/realtime-chat-backend/socket/gateway"
+	"github.com/kwa0x2/swiftchat-backend/config"
+	"github.com/kwa0x2/swiftchat-backend/controller"
+	"github.com/kwa0x2/swiftchat-backend/repository"
+	"github.com/kwa0x2/swiftchat-backend/service"
+	"github.com/kwa0x2/swiftchat-backend/socket/adapter"
+	"github.com/kwa0x2/swiftchat-backend/socket/gateway"
 	"github.com/resend/resend-go/v2"
 	"github.com/zishang520/socket.io/socket"
 )

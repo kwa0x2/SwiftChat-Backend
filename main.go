@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/gob"
-	"github.com/kwa0x2/realtime-chat-backend/internal/app"
+	"github.com/kwa0x2/swiftchat-backend/internal/app"
 	"log"
 	"time"
 )

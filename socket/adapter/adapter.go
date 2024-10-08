@@ -2,8 +2,8 @@ package adapter
 
 import (
 	"fmt"
-	"github.com/kwa0x2/realtime-chat-backend/service"
-	"github.com/kwa0x2/realtime-chat-backend/socket/gateway"
+	"github.com/kwa0x2/swiftchat-backend/service"
+	"github.com/kwa0x2/swiftchat-backend/socket/gateway"
 	"github.com/zishang520/socket.io/socket"
 	"sync"
 )
@@ -65,8 +65,8 @@ func (adapter *socketAdapter) HandleConnection() {
 			adapter.handleEditMessage(args...)
 		})
 
-		socketio.On("starMessage", func(args ...any) {
-			adapter.handleStarMessage(args...)
+		socketio.On("updateMessageType", func(args ...any) {
+			adapter.handleUpdateMessageType(args...)
 		})
 		socketio.On("readMessage", func(args ...any) {
 			adapter.handleReadMessage(connectedUserID, args...)

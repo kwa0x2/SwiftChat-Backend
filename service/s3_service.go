@@ -8,7 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/kwa0x2/realtime-chat-backend/config"
+	"github.com/kwa0x2/swiftchat-backend/config"
 )
 
 type IS3Service interface {
