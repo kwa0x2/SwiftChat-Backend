@@ -2,9 +2,9 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/kwa0x2/realtime-chat-backend/controller"
-	"github.com/kwa0x2/realtime-chat-backend/middlewares"
-	"github.com/kwa0x2/realtime-chat-backend/socket/adapter"
+	"github.com/kwa0x2/swiftchat-backend/controller"
+	"github.com/kwa0x2/swiftchat-backend/middlewares"
+	"github.com/kwa0x2/swiftchat-backend/socket/adapter"
 	"github.com/zishang520/socket.io/socket"
 )
 

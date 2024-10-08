@@ -1,4 +1,4 @@
-module github.com/kwa0x2/realtime-chat-backend
+module github.com/kwa0x2/swiftchat-backend
 
 go 1.23
 

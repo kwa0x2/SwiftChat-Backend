@@ -2,7 +2,7 @@ package service
 
 import (
 	"fmt"
-	"github.com/kwa0x2/realtime-chat-backend/utils"
+	"github.com/kwa0x2/swiftchat-backend/utils"
 	"github.com/resend/resend-go/v2"
 )
 

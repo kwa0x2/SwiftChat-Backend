@@ -2,9 +2,9 @@ package service
 
 import (
 	"github.com/google/uuid"
-	"github.com/kwa0x2/realtime-chat-backend/models"
-	"github.com/kwa0x2/realtime-chat-backend/repository"
-	"github.com/kwa0x2/realtime-chat-backend/types"
+	"github.com/kwa0x2/swiftchat-backend/models"
+	"github.com/kwa0x2/swiftchat-backend/repository"
+	"github.com/kwa0x2/swiftchat-backend/types"
 	"gorm.io/gorm"
 )
 
@@ -14,7 +14,7 @@ type IMessageService interface {
 	GetMessageHistoryByRoomID(roomId uuid.UUID) ([]*models.Message, error)
 	DeleteById(messageId uuid.UUID) error
 	UpdateMessageById(messageId uuid.UUID, message string) error
-	StarMessageById(messageId uuid.UUID) error
+	UpdateMessageTypeById(messageId uuid.UUID, messageType types.MessageType) error
 	ReadMessageByRoomId(connectedUserID, roomId string, messageId *string) error
 }
 
@@ -117,15 +117,15 @@ func (s *messageService) UpdateMessageById(messageId uuid.UUID, message string) 
 
 // endregion
 
-// region "StarMessageById" marks a message as starred by its ID
-func (s *messageService) StarMessageById(messageId uuid.UUID) error {
+// region "UpdateMessageTypeById" updates the message type by its ID.
+func (s *messageService) UpdateMessageTypeById(messageId uuid.UUID, messageType types.MessageType) error {
 	// Prepare the message data for starring.
 	whereMessage := &models.Message{
 		MessageID: messageId, // Specify the message to star using its ID.
 	}
 
 	updateMessage := &models.Message{
-		MessageType: types.StarredText, // Set the message type to "starred".
+		MessageType: messageType, // Update the message type.
 	}
 
 	return s.MessageRepository.UpdateExceptUpdatedAt(whereMessage, updateMessage, false)

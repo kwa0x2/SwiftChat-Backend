@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/google/uuid"
-	"github.com/kwa0x2/realtime-chat-backend/models"
+	"github.com/kwa0x2/swiftchat-backend/models"
 	"sync"
 	"time"
 
@@ -13,9 +13,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kwa0x2/realtime-chat-backend/config"
-	"github.com/kwa0x2/realtime-chat-backend/service"
-	"github.com/kwa0x2/realtime-chat-backend/utils"
+	"github.com/kwa0x2/swiftchat-backend/config"
+	"github.com/kwa0x2/swiftchat-backend/service"
+	"github.com/kwa0x2/swiftchat-backend/utils"
 )
 
 type IAuthController interface {

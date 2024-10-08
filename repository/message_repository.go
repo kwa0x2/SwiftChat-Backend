@@ -2,8 +2,8 @@ package repository
 
 import (
 	"github.com/google/uuid"
-	"github.com/kwa0x2/realtime-chat-backend/models"
-	"github.com/kwa0x2/realtime-chat-backend/types"
+	"github.com/kwa0x2/swiftchat-backend/models"
+	"github.com/kwa0x2/swiftchat-backend/types"
 	"gorm.io/gorm"
 )
 

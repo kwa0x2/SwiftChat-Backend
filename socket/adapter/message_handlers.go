@@ -3,8 +3,9 @@ package adapter
 import (
 	"errors"
 	"github.com/google/uuid"
-	"github.com/kwa0x2/realtime-chat-backend/models"
-	"github.com/kwa0x2/realtime-chat-backend/utils"
+	"github.com/kwa0x2/swiftchat-backend/models"
+	"github.com/kwa0x2/swiftchat-backend/types"
+	"github.com/kwa0x2/swiftchat-backend/utils"
 )
 
 // region "handleSendMessage" processes sending a message in a chat room.
@@ -165,8 +166,8 @@ func (adapter *socketAdapter) EditMessage(connectedUserMail, roomId, editedMessa
 
 // endregion
 
-// region "handleStarMessage" processes message starring requests.
-func (adapter *socketAdapter) handleStarMessage(args ...any) {
+// region "handleUpdateMessageType" processes requests to update message type.
+func (adapter *socketAdapter) handleUpdateMessageType(args ...any) {
 	data, callback := utils.ExtractArgs(args)
 	if data == nil || callback == nil {
 		utils.SendResponse(callback, "error", "Invalid arguments")
@@ -179,28 +180,29 @@ func (adapter *socketAdapter) handleStarMessage(args ...any) {
 		return
 	}
 
-	starErr := adapter.StarMessage(data["room_id"].(string), messageID)
+	starErr := adapter.updateMessageType(data["room_id"].(string), messageID, types.MessageType(data["message_type"].(string)))
 	if starErr != nil {
 		utils.LogError(callback, starErr.Error())
 		return
 	}
-	utils.LogSuccess(callback, "Message starred successfully")
+	utils.LogSuccess(callback, "Message type updated successfully")
 }
 
 // endregion
 
-// region "StarMessage" stars a message in the database and notifies clients.
-func (adapter *socketAdapter) StarMessage(roomId string, messageId uuid.UUID) error {
-	// Star the message by its ID.
-	if err := adapter.MessageService.StarMessageById(messageId); err != nil {
+// region "updateMessageType" updates the message type and notifies clients.
+func (adapter *socketAdapter) updateMessageType(roomId string, messageId uuid.UUID, messageType types.MessageType) error {
+	// Update the message type in the database.
+	if err := adapter.MessageService.UpdateMessageTypeById(messageId, messageType); err != nil {
 		return err
 	}
 
 	notifyData := map[string]interface{}{
-		"message_id": messageId,
+		"message_id":   messageId,
+		"message_type": messageType,
 	}
 
-	adapter.Gateway.EmitToRoomId("star_message", roomId, notifyData)
+	adapter.Gateway.EmitToRoomId("updated_message_type", roomId, notifyData)
 	return nil
 }
 

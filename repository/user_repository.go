@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/kwa0x2/realtime-chat-backend/models"
+	"github.com/kwa0x2/swiftchat-backend/models"
 	"gorm.io/gorm"
 )
 
