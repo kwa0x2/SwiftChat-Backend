@@ -18,6 +18,7 @@ type Container struct {
 	MessageController controller.IMessageController
 	FriendController  controller.IFriendController
 	RequestController controller.IRequestController
+	FileController    controller.IFileController
 	SocketAdapter     adapter.ISocketAdapter
 }
 
@@ -55,6 +56,7 @@ func NewContainer(socketServer *socket.Server, resendClient *resend.Client) *Con
 		MessageController: controller.NewMessageController(messageService),
 		FriendController:  controller.NewFriendController(friendService, socketGateway),
 		RequestController: controller.NewRequestController(requestService, friendService, userService, socketGateway, resendService),
+		FileController:    controller.NewFileController(s3Service),
 		SocketAdapter:     socketAdapter,
 	}
 }

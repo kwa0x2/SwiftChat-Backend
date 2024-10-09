@@ -65,9 +65,10 @@ func (adapter *socketAdapter) HandleConnection() {
 			adapter.handleEditMessage(args...)
 		})
 
-		socketio.On("updateMessageType", func(args ...any) {
-			adapter.handleUpdateMessageType(args...)
+		socketio.On("updateMessageStarred", func(args ...any) {
+			adapter.handleUpdateMessageStarred(args...)
 		})
+
 		socketio.On("readMessage", func(args ...any) {
 			adapter.handleReadMessage(connectedUserID, args...)
 		})
