@@ -58,6 +58,7 @@ func (a *App) SetupRoutes() {
 	routes.FriendRoute(a.Router, container.FriendController)
 	routes.RequestRoute(a.Router, container.RequestController)
 	routes.RoomRoute(a.Router, container.RoomController)
+	routes.FileRoute(a.Router, container.FileController)
 	routes.SetupSocketIO(a.Router, a.Socket, container.SocketAdapter) // Setup Socket.IO routes
 }
 

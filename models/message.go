@@ -15,9 +15,11 @@ type Message struct {
 	RoomID            uuid.UUID         `json:"room_id" gorm:"not null;type:uuid"`
 	MessageReadStatus types.ReadStatus  `json:"message_read_status" gorm:"type:read_status;not null;default:unread"`
 	MessageType       types.MessageType `json:"message_type" gorm:"type:message_type;not null;default:text"`
-	CreatedAt         time.Time         `json:"createdAt" gorm:"not null;column:createdAt;default:CURRENT_TIMESTAMP"`
-	UpdatedAt         time.Time         `json:"updatedAt" gorm:"not null;column:updatedAt;default:CURRENT_TIMESTAMP"`
-	DeletedAt         gorm.DeletedAt    `json:"deletedAt" gorm:"column:deletedAt"`
+	MessageStarred    bool              `json:"message_starred" gorm:"not null;default:false"`
+
+	CreatedAt time.Time      `json:"createdAt" gorm:"not null;column:createdAt;default:CURRENT_TIMESTAMP"`
+	UpdatedAt time.Time      `json:"updatedAt" gorm:"not null;column:updatedAt;default:CURRENT_TIMESTAMP"`
+	DeletedAt gorm.DeletedAt `json:"deletedAt" gorm:"column:deletedAt"`
 }
 
 func (Message) TableName() string {

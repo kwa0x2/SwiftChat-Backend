@@ -64,6 +64,13 @@ func RoomRoute(router *gin.Engine, roomController controller.IRoomController) {
 	}
 }
 
+func FileRoute(router *gin.Engine, fileController controller.IFileController) {
+	roomRoutes := router.Group("/api/v1/file")
+	{
+		roomRoutes.POST("upload-file", fileController.UploadFile)
+	}
+}
+
 func SetupSocketIO(router *gin.Engine, server *socket.Server, socketAdapter adapter.ISocketAdapter) {
 	socketAdapter.HandleConnection()
 

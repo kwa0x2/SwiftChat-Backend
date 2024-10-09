@@ -24,14 +24,15 @@ func (adapter *socketAdapter) handleSendMessage(connectedUserID, connectedUserMa
 
 	// Create a message object with sender ID, message content, and room ID.
 	messageObj := models.Message{
-		SenderID: connectedUserID,
-		Message:  data["message"].(string),
-		RoomID:   roomID,
+		SenderID:    connectedUserID,
+		Message:     data["message"].(string),
+		RoomID:      roomID,
+		MessageType: types.MessageType(data["message_type"].(string)),
 	}
 
-	addedMessageId, err := adapter.SendMessage(&messageObj, connectedUserMail, data["user_email"].(string))
-	if err != nil {
-		utils.LogError(callback, err.Error())
+	addedMessageId, sendErr := adapter.SendMessage(&messageObj, connectedUserMail, data["user_email"].(string))
+	if sendErr != nil {
+		utils.LogError(callback, sendErr.Error())
 		return
 	}
 
@@ -59,10 +60,11 @@ func (adapter *socketAdapter) SendMessage(messageObj *models.Message, senderMail
 
 	// Prepare notification data to send to the recipient.
 	notifyData := map[string]interface{}{
-		"room_id":    addedMessageData.RoomID,
-		"message":    addedMessageData.Message,
-		"message_id": addedMessageData.MessageID,
-		"updatedAt":  addedMessageData.UpdatedAt,
+		"room_id":      addedMessageData.RoomID,
+		"message":      addedMessageData.Message,
+		"message_id":   addedMessageData.MessageID,
+		"updatedAt":    addedMessageData.UpdatedAt,
+		"message_type": addedMessageData.MessageType,
 	}
 
 	// Emit new message event to the chat room.
@@ -166,8 +168,8 @@ func (adapter *socketAdapter) EditMessage(connectedUserMail, roomId, editedMessa
 
 // endregion
 
-// region "handleUpdateMessageType" processes requests to update message type.
-func (adapter *socketAdapter) handleUpdateMessageType(args ...any) {
+// region "handleUpdateMessageStarred" processes requests to update message type.
+func (adapter *socketAdapter) handleUpdateMessageStarred(args ...any) {
 	data, callback := utils.ExtractArgs(args)
 	if data == nil || callback == nil {
 		utils.SendResponse(callback, "error", "Invalid arguments")
@@ -180,29 +182,29 @@ func (adapter *socketAdapter) handleUpdateMessageType(args ...any) {
 		return
 	}
 
-	starErr := adapter.updateMessageType(data["room_id"].(string), messageID, types.MessageType(data["message_type"].(string)))
+	starErr := adapter.UpdateMessageStarred(data["room_id"].(string), messageID, data["message_starred"].(bool))
 	if starErr != nil {
 		utils.LogError(callback, starErr.Error())
 		return
 	}
-	utils.LogSuccess(callback, "Message type updated successfully")
+	utils.LogSuccess(callback, "Message starred boolean updated successfully")
 }
 
 // endregion
 
-// region "updateMessageType" updates the message type and notifies clients.
-func (adapter *socketAdapter) updateMessageType(roomId string, messageId uuid.UUID, messageType types.MessageType) error {
+// region "updateMessageStarred" updates the message type and notifies clients.
+func (adapter *socketAdapter) UpdateMessageStarred(roomId string, messageId uuid.UUID, messageStarred bool) error {
 	// Update the message type in the database.
-	if err := adapter.MessageService.UpdateMessageTypeById(messageId, messageType); err != nil {
+	if err := adapter.MessageService.UpdateMessageStarredById(messageId, messageStarred); err != nil {
 		return err
 	}
 
 	notifyData := map[string]interface{}{
-		"message_id":   messageId,
-		"message_type": messageType,
+		"message_id":      messageId,
+		"message_starred": messageStarred,
 	}
 
-	adapter.Gateway.EmitToRoomId("updated_message_type", roomId, notifyData)
+	adapter.Gateway.EmitToRoomId("updated_message_starred", roomId, notifyData)
 	return nil
 }
 
