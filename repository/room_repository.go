@@ -44,7 +44,7 @@ func (r *roomRepository) Update(tx *gorm.DB, whereRoom *models.Room, updateRoom 
 	if tx != nil {
 		db = tx // Use the provided transaction if available
 	}
-	if err := db.Model(&models.Room{}).Where(whereRoom).Updates(updateRoom).Error; err != nil {
+	if err := db.Model(&models.Room{}).Debug().Where(whereRoom).Updates(updateRoom).Error; err != nil {
 		return err
 	}
 	return nil
@@ -54,17 +54,18 @@ func (r *roomRepository) Update(tx *gorm.DB, whereRoom *models.Room, updateRoom 
 
 // region "GetChatList" DTO
 type ChatList struct {
-	RoomID           uuid.UUID          `json:"room_id"`                           // Unique identifier for the room
-	LastMessage      string             `json:"last_message"`                      // Last message in the chat
-	UpdatedAt        time.Time          `json:"updatedAt" gorm:"column:updatedAt"` // Last update timestamp
-	UserName         string             `json:"user_name"`                         // Name of the user associated with the room
-	UserPhoto        string             `json:"user_photo"`                        // Photo of the user associated with the room
-	UserEmail        string             `json:"user_email"`                        // Email of the user associated with the room
-	FriendStatus     types.FriendStatus `json:"friend_status"`                     // Status of the friendship with the user
-	CreatedAt        time.Time          `json:"createdAt" gorm:"column:createdAt"` // Room creation timestamp
-	LastMessageID    uuid.UUID          `json:"last_message_id" gorm:"type:uuid"`  // Identifier for the last message
-	MessageDeletedAt gorm.DeletedAt     `json:"message_deleted_at"`                // Timestamp when the last message was deleted
-	MessageType      types.MessageType  `json:"message_type" gorm:"type:message_type;not null"`
+	RoomID             uuid.UUID          `json:"room_id"`                          // Unique identifier for the room
+	LastMessageContent string             `json:"last_message_content"`             // Last message in the chat
+	UserName           string             `json:"user_name"`                        // Name of the user associated with the room
+	UserPhoto          string             `json:"user_photo"`                       // Photo of the user associated with the room
+	UserEmail          string             `json:"user_email"`                       // Email of the user associated with the room
+	FriendStatus       types.FriendStatus `json:"friend_status"`                    // Status of the friendship with the user
+	LastMessageID      uuid.UUID          `json:"last_message_id" gorm:"type:uuid"` // Identifier for the last message
+	MessageType        types.MessageType  `json:"message_type" gorm:"type:message_type;not null"`
+	CreatedAt          time.Time          `json:"createdAt" gorm:"column:createdAt"` // Room creation timestamp
+	MessageDeletedAt   gorm.DeletedAt     `json:"message_deleted_at"`                // Timestamp when the last message was deleted
+	UpdatedAt          time.Time          `json:"updatedAt" gorm:"column:updatedAt"` // Last update timestamp
+
 }
 
 // endregion
@@ -76,12 +77,12 @@ func (r *roomRepository) GetChatList(userId, userEmail string) ([]*ChatList, err
 
 	var chatLists []*ChatList
 
-	if err := r.DB.Model(&models.Room{}).Debug().
-		Select(`DISTINCT ON ("ROOM".room_id) "ROOM".room_id, "ROOM".last_message_id, "ROOM"."updatedAt", "USER".user_name, "USER".user_photo,"USER"."createdAt", "USER".user_email, "FRIEND".friend_status, "MESSAGE".message AS last_message,"MESSAGE".message_type,  "MESSAGE"."deletedAt" AS message_deleted_at`).
+	if err := r.DB.Model(&models.Room{}).
+		Select(`DISTINCT ON ("ROOM".room_id) "ROOM".room_id, "ROOM".last_message_id, "ROOM"."updatedAt", "USER".user_name, "USER".user_photo,"USER"."createdAt", "USER".user_email, "FRIEND".friend_status, "MESSAGE".message_content AS last_message_content, "MESSAGE".message_type, "MESSAGE"."deletedAt" AS message_deleted_at`).
 		Joins(`INNER JOIN "USER_ROOM" ON "ROOM".room_id = "USER_ROOM".room_id`).
 		Joins(`LEFT JOIN "USER_ROOM" ur2 ON "ROOM".room_id = ur2.room_id AND ur2.user_id != ?`, userId).
 		Joins(`LEFT JOIN "USER" ON ur2.user_id = "USER".user_id`).
-		Joins(`LEFT JOIN "FRIEND" ON (("USER".user_email = "FRIEND".user_mail AND ? = "FRIEND".user_mail2) OR ("USER".user_email = "FRIEND".user_mail2 AND ? = "FRIEND".user_mail))`, userEmail, userEmail).
+		Joins(`LEFT JOIN "FRIEND" ON (("USER".user_email = "FRIEND".user_email AND ? = "FRIEND".user_email2) OR ("USER".user_email = "FRIEND".user_email2 AND ? = "FRIEND".user_email))`, userEmail, userEmail).
 		Joins(`LEFT JOIN "MESSAGE" ON "ROOM".last_message_id = "MESSAGE".message_id`).
 		Where(`"USER_ROOM".user_id = ?`, userId).
 		Where(`"MESSAGE".room_id IS NOT NULL`).

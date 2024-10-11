@@ -24,10 +24,10 @@ func (adapter *socketAdapter) handleSendMessage(connectedUserID, connectedUserMa
 
 	// Create a message object with sender ID, message content, and room ID.
 	messageObj := models.Message{
-		SenderID:    connectedUserID,
-		Message:     data["message"].(string),
-		RoomID:      roomID,
-		MessageType: types.MessageType(data["message_type"].(string)),
+		SenderID:       connectedUserID,
+		MessageContent: data["message_content"].(string),
+		RoomID:         roomID,
+		MessageType:    types.MessageType(data["message_type"].(string)),
 	}
 
 	addedMessageId, sendErr := adapter.SendMessage(&messageObj, connectedUserMail, data["user_email"].(string))
@@ -60,11 +60,11 @@ func (adapter *socketAdapter) SendMessage(messageObj *models.Message, senderMail
 
 	// Prepare notification data to send to the recipient.
 	notifyData := map[string]interface{}{
-		"room_id":      addedMessageData.RoomID,
-		"message":      addedMessageData.Message,
-		"message_id":   addedMessageData.MessageID,
-		"updatedAt":    addedMessageData.UpdatedAt,
-		"message_type": addedMessageData.MessageType,
+		"room_id":         addedMessageData.RoomID,
+		"message_content": addedMessageData.MessageContent,
+		"message_id":      addedMessageData.MessageID,
+		"updatedAt":       addedMessageData.UpdatedAt,
+		"message_type":    addedMessageData.MessageType,
 	}
 
 	// Emit new message event to the chat room.

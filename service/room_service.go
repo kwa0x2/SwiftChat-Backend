@@ -3,14 +3,13 @@ package service
 import (
 	"github.com/kwa0x2/swiftchat-backend/models"
 	"github.com/kwa0x2/swiftchat-backend/repository"
-	"github.com/kwa0x2/swiftchat-backend/types"
 	"gorm.io/gorm"
 )
 
 type IRoomService interface {
 	Create(tx *gorm.DB, room *models.Room) (*models.Room, error)
 	Update(tx *gorm.DB, whereRoom *models.Room, updateRoom *models.Room) error
-	CreateAndAddUsers(createdUserId string, userId2 string, roomType types.RoomType) (string, error)
+	CreateAndAddUsers(createdUserId string, userId2 string) (string, error)
 	GetChatList(userId, userEmail string) ([]*repository.ChatList, error)
 }
 
@@ -41,7 +40,7 @@ func (s *roomService) Update(tx *gorm.DB, whereRoom *models.Room, updateRoom *mo
 // endregion
 
 // region "CreateAndAddUsers" creates a new room and adds users to the user room within a transaction.
-func (s *roomService) CreateAndAddUsers(createdUserId string, userId2 string, roomType types.RoomType) (string, error) {
+func (s *roomService) CreateAndAddUsers(createdUserId string, userId2 string) (string, error) {
 	// Begin a new database transaction.
 	tx := s.RoomRepository.GetDB().Begin()
 	if tx.Error != nil {
@@ -51,7 +50,6 @@ func (s *roomService) CreateAndAddUsers(createdUserId string, userId2 string, ro
 	// Create a new room object.
 	roomObj := &models.Room{
 		CreatedUserID: createdUserId, // Set the creator of the room.
-		RoomType:      roomType,      // Set the type of the room.
 	}
 
 	// Create the room in the database.

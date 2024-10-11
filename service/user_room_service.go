@@ -8,7 +8,7 @@ import (
 
 type IUserRoomService interface {
 	Create(tx *gorm.DB, userRoom *models.UserRoom) error
-	GetPrivateRoom(userId1, userId2 string) (string, error)
+	GetRoom(userId1, userId2 string) (string, error)
 }
 
 type userRoomService struct {
@@ -28,9 +28,9 @@ func (s *userRoomService) Create(tx *gorm.DB, userRoom *models.UserRoom) error {
 
 //endregion
 
-// region "GetPrivateRoom" fetches the room ID of a private room for the specified user IDs
-func (s *userRoomService) GetPrivateRoom(userId1, userId2 string) (string, error) {
-	return s.UserRoomRepository.GetPrivateRoom(userId1, userId2)
+// region "GetRoom" fetches the room ID of a room for the specified user IDs
+func (s *userRoomService) GetRoom(userId1, userId2 string) (string, error) {
+	return s.UserRoomRepository.GetRoom(userId1, userId2)
 }
 
 //endregion

@@ -77,7 +77,7 @@ func (adapter *socketAdapter) HandleConnection() {
 
 // endregion
 
-// region "EmitToFriendsAndSentRequests" sends an event to all friends and sent requests of the specified user with the provided data.
+// region "EmitToFriendsAndSentRequests" sends a specified event and data to all friends, sent friend requests, and blocked users of the given user.
 func (adapter *socketAdapter) EmitToFriendsAndSentRequests(event, userEmail string, emitData interface{}) error {
 	// Retrieve the list of friends for the given userEmail.
 	friends, err := adapter.FriendService.GetFriends(userEmail, true)
@@ -85,24 +85,37 @@ func (adapter *socketAdapter) EmitToFriendsAndSentRequests(event, userEmail stri
 		return err
 	}
 
+	// Retrieve the list of sent friend requests by the user.
 	requests, ReqErr := adapter.RequestService.GetSentRequests(userEmail)
 	if ReqErr != nil {
 		return ReqErr
 	}
 
+	// Retrieve the list of blocked users.
+	blockedUsers, BlockedErr := adapter.FriendService.GetBlockedUsers(userEmail)
+	if BlockedErr != nil {
+		return BlockedErr
+	}
+
+	// Use a map to avoid duplicate emails.
 	emailSet := make(map[string]struct{})
 
 	// Add friends' emails to the map.
 	for _, friend := range friends {
-		emailSet[friend.UserMail] = struct{}{}
+		emailSet[friend.UserEmail] = struct{}{}
 	}
 
-	// Add requests' sender emails to the map.
+	// Add the receiver's emails from the sent requests to the map.
 	for _, request := range requests {
-		emailSet[request.ReceiverMail] = struct{}{}
+		emailSet[request.ReceiverEmail] = struct{}{}
 	}
 
-	// Prepare a WaitGroup to synchronize goroutines.
+	// Add blocked users' emails to the map.
+	for _, blockedUser := range blockedUsers {
+		emailSet[blockedUser.UserEmail] = struct{}{}
+	}
+
+	// Use a WaitGroup to synchronize the event emission to all emails.
 	var wg sync.WaitGroup
 	for email := range emailSet {
 		wg.Add(1) // Increment the WaitGroup counter.

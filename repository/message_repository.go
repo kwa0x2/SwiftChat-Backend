@@ -9,7 +9,7 @@ import (
 
 type IMessageRepository interface {
 	Create(tx *gorm.DB, message *models.Message) (*models.Message, error)
-	UpdateExceptUpdatedAt(whereMessage *models.Message, updateMessage *models.Message, isUnscoped bool) error
+	Update(whereMessage *models.Message, updateMessage *models.Message, isUnscoped, exceptUpdatedAt bool) error
 	Delete(whereMessage *models.Message) error
 	ReadMessageByRoomId(connectedUserID, roomId string, messageId *string) error
 	GetMessageHistoryByRoomID(roomId uuid.UUID) ([]*models.Message, error)
@@ -41,14 +41,21 @@ func (r *messageRepository) Create(tx *gorm.DB, message *models.Message) (*model
 
 // endregion
 
-// region "Update" modifies the fields of a message in the database based on specified conditions
-func (r *messageRepository) UpdateExceptUpdatedAt(whereMessage *models.Message, updateMessage *models.Message, isUnscoped bool) error {
+// region "Update" updates a message record in the database based on the provided conditions.
+func (r *messageRepository) Update(whereMessage *models.Message, updateMessage *models.Message, isUnscoped, exceptUpdatedAt bool) error {
 	query := r.DB.Model(&models.Message{}).Where(whereMessage)
 
+	// If isUnscoped is true, it includes soft-deleted records in the update.
 	if isUnscoped {
-		query = query.Unscoped() // Include soft-deleted messages in the update
+		query = query.Unscoped()
 	}
 
+	// If exceptUpdatedAt is true, use Updates, which automatically handles `updated_at`.
+	if exceptUpdatedAt {
+		return query.Updates(updateMessage).Error
+	}
+
+	// Otherwise, use UpdateColumns to update specific fields without updating `updated_at`.
 	return query.UpdateColumns(updateMessage).Error
 }
 
@@ -83,11 +90,12 @@ func (r *messageRepository) GetMessageHistoryByRoomID(roomId uuid.UUID) ([]*mode
 			sender_id, 
 			room_id, 
 			message_read_status,
+			message_starred,
 			message_type,
 			"createdAt", 
 			"updatedAt",
 			"deletedAt",
-			CASE WHEN "deletedAt" IS NOT NULL THEN '' ELSE message END as message
+			CASE WHEN "deletedAt" IS NOT NULL THEN '' ELSE message_content END as message_content
 		`).
 		Where(&models.Message{RoomID: roomId}).
 		Order(`"createdAt" ASC`).

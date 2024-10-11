@@ -102,7 +102,6 @@ func (ctrl *authController) GoogleCallback(ctx *gin.Context) {
 		session.Set("name", user.UserName)
 		session.Set("email", userData["email"].(string))
 		session.Set("photo", user.UserPhoto)
-		session.Set("role", user.UserRole)
 		session.Save()
 
 		// Redirect the user to the login page since they already exist in the system
@@ -142,7 +141,6 @@ func (ctrl *authController) CheckAuth(ctx *gin.Context) {
 		"name":  session.Get("name"),
 		"email": session.Get("email"),
 		"photo": session.Get("photo"),
-		"role":  session.Get("role"),
 	})
 }
 
@@ -200,7 +198,6 @@ func (ctrl *authController) SignUp(ctx *gin.Context) {
 	session.Set("name", signUpBody.UserName)
 	session.Set("email", claims["user_email"].(string))
 	session.Set("photo", signUpBody.UserPhoto)
-	session.Set("role", "user")
 	session.Save()
 
 	// Check if the username is unique
@@ -210,13 +207,13 @@ func (ctrl *authController) SignUp(ctx *gin.Context) {
 	}
 
 	// Insert the new user into the database
-	userData, createErr := ctrl.UserService.Create(&userInsertObj)
+	user, createErr := ctrl.UserService.Create(&userInsertObj)
 	if createErr != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to insert new user into database"))
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, userData)
+	ctx.JSON(http.StatusCreated, user)
 }
 
 // endregion

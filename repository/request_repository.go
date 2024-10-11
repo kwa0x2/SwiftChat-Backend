@@ -91,7 +91,7 @@ func (r *requestRepository) GetRequests(receiverEmail string) ([]*models.Request
 	var requests []*models.Request
 
 	if err := r.DB.
-		Where(&models.Request{ReceiverMail: receiverEmail, RequestStatus: types.Pending}).
+		Where(&models.Request{ReceiverEmail: receiverEmail, RequestStatus: types.Pending}).
 		Preload("User").
 		Find(&requests).Error; err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func (r *requestRepository) GetSentRequests(senderEmail string) ([]*models.Reque
 	var requests []*models.Request
 
 	if err := r.DB.
-		Where(&models.Request{SenderMail: senderEmail, RequestStatus: types.Pending}).
+		Where(&models.Request{SenderEmail: senderEmail, RequestStatus: types.Pending}).
 		Find(&requests).Error; err != nil {
 		return nil, err
 	}

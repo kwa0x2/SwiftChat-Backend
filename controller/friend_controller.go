@@ -48,9 +48,9 @@ func (ctrl *friendController) GetFriends(ctx *gin.Context) {
 	var responseData []map[string]interface{}
 	for _, item := range friends {
 		responseItem := map[string]interface{}{
-			"friend_mail": item.UserMail,       // Friend's email
-			"user_name":   item.User.UserName,  // Friend's username
-			"user_photo":  item.User.UserPhoto, // Friend's profile photo
+			"friend_email": item.UserEmail,      // Friend's email
+			"user_name":    item.User.UserName,  // Friend's username
+			"user_photo":   item.User.UserPhoto, // Friend's profile photo
 		}
 		responseData = append(responseData, responseItem) // Append the formatted item
 	}
@@ -80,8 +80,8 @@ func (ctrl *friendController) GetBlockedUsers(ctx *gin.Context) {
 	var responseData []map[string]interface{}
 	for _, item := range blockedUsers {
 		responseItem := map[string]interface{}{
-			"blocked_mail": item.UserMail,      // Blocked user's email
-			"user_name":    item.User.UserName, // Blocked user's username
+			"blocked_email": item.UserEmail,     // Blocked user's email
+			"user_name":     item.User.UserName, // Blocked user's username
 		}
 		responseData = append(responseData, responseItem) // Append the formatted item
 	}
@@ -117,7 +117,7 @@ func (ctrl *friendController) Block(ctx *gin.Context) {
 
 	// Prepare the notification data
 	notifyData := map[string]interface{}{
-		"friend_mail":   userSessionInfo.Email, // Email of the user who is blocking
+		"friend_email":  userSessionInfo.Email, // Email of the user who is blocking
 		"friend_status": friendStatus,          // Status of the blocking action
 	}
 

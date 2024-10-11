@@ -92,12 +92,10 @@ func (ctrl *userController) UploadProfilePhoto(ctx *gin.Context) {
 	}
 	defer file.Close() // Ensure the file is closed after processing.
 
-	session := sessions.Default(ctx)
-
-	// Get user session information.
-	userSessionInfo, userSessionErr := utils.GetUserSessionInfo(ctx)
-	if userSessionErr != nil {
-		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", userSessionErr.Error()))
+	// Retrieve the user's email from the context, which is set during authentication.
+	userEmail, exists := ctx.Get("email")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, utils.NewErrorResponse("Unauthorized", "Authorization required"))
 		return
 	}
 
@@ -109,12 +107,13 @@ func (ctrl *userController) UploadProfilePhoto(ctx *gin.Context) {
 	}
 
 	// Update the user's photo in the database using their email.
-	if UpdateErr := ctrl.UserService.UpdateUserPhotoByMail(fileURL, userSessionInfo.Email); UpdateErr != nil {
+	if UpdateErr := ctrl.UserService.UpdateUserPhotoByMail(fileURL, userEmail.(string)); UpdateErr != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error updating user photo"))
 		return
 	}
 
 	// Update the session with the new photo URL.
+	session := sessions.Default(ctx)
 	if session.Get("email") != nil {
 		session.Set("photo", fileURL)
 		session.Save()
@@ -123,11 +122,11 @@ func (ctrl *userController) UploadProfilePhoto(ctx *gin.Context) {
 	// Prepare data to emit to friends regarding the photo update.
 	emitData := map[string]interface{}{
 		"updated_user_photo": fileURL,
-		"user_email":         userSessionInfo.Email,
+		"user_email":         userEmail.(string),
 	}
 
 	// Emit the photo update notification to friends using the socket adapter.
-	if EmitErr := ctrl.SocketAdapter.EmitToFriendsAndSentRequests("update_user_photo", userSessionInfo.Email, emitData); EmitErr != nil {
+	if EmitErr := ctrl.SocketAdapter.EmitToFriendsAndSentRequests("update_user_photo", userEmail.(string), emitData); EmitErr != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to emit update user photo notification to friends"))
 		return
 	}
