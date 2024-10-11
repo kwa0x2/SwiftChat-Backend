@@ -60,7 +60,6 @@ func (s *messageService) InsertAndUpdateRoom(message *models.Message) (*models.M
 
 	updateRoom := &models.Room{
 		LastMessageID: message.MessageID, // Set the last message ID to the new message's ID.
-		LastMessage:   message.Message,   // Update the last message text.
 	}
 
 	// Update the room with the new last message details.
@@ -108,10 +107,10 @@ func (s *messageService) UpdateMessageById(messageId uuid.UUID, message string) 
 	}
 
 	updateMessage := &models.Message{
-		Message: message, // Set the new message content.
+		MessageContent: message, // Set the new message content.
 	}
 
-	return s.MessageRepository.UpdateExceptUpdatedAt(whereMessage, updateMessage, false)
+	return s.MessageRepository.Update(whereMessage, updateMessage, false, false)
 }
 
 // endregion
@@ -127,7 +126,7 @@ func (s *messageService) UpdateMessageStarredById(messageId uuid.UUID, messageSt
 		MessageStarred: messageStarred, // Update the message type.
 	}
 
-	return s.MessageRepository.UpdateExceptUpdatedAt(whereMessage, updateMessage, false)
+	return s.MessageRepository.Update(whereMessage, updateMessage, false, false)
 }
 
 // endregion

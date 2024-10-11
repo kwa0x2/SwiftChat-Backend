@@ -9,8 +9,8 @@ import (
 )
 
 type Message struct {
-	MessageID         uuid.UUID         `json:"message_id" gorm:"not null;type:uuid;primaryKey;autoIncrement"`
-	Message           string            `json:"message" gorm:"not null;size:10000"`
+	MessageID         uuid.UUID         `json:"message_id" gorm:"not null;type:uuid;primaryKey;default:gen_random_uuid()"`
+	MessageContent    string            `json:"message_content" gorm:"not null"`
 	SenderID          string            `json:"sender_id" gorm:"not null"`
 	RoomID            uuid.UUID         `json:"room_id" gorm:"not null;type:uuid"`
 	MessageReadStatus types.ReadStatus  `json:"message_read_status" gorm:"type:read_status;not null;default:unread"`

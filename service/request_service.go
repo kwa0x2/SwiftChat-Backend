@@ -48,8 +48,8 @@ func (s *requestService) Update(tx *gorm.DB, whereRequest *models.Request, updat
 // region "DeleteByEmail" removes a request based on the provided email information.
 func (s *requestService) DeleteByEmail(tx *gorm.DB, receiverEmail, senderEmail string) error {
 	whereRequest := &models.Request{
-		ReceiverMail: receiverEmail,
-		SenderMail:   senderEmail,
+		ReceiverEmail: receiverEmail,
+		SenderEmail:   senderEmail,
 	}
 
 	return s.RequestRepository.Delete(tx, whereRequest)
@@ -80,8 +80,8 @@ func (s *requestService) UpdateFriendshipRequest(receiverEmail, senderEmail stri
 
 	// Prepare the request that needs to be updated
 	whereRequest := &models.Request{
-		ReceiverMail: receiverEmail,
-		SenderMail:   senderEmail,
+		ReceiverEmail: receiverEmail,
+		SenderEmail:   senderEmail,
 	}
 
 	// Create an updated request with the new status
@@ -109,12 +109,12 @@ func (s *requestService) UpdateFriendshipRequest(receiverEmail, senderEmail stri
 	}
 
 	var result map[string]interface{}
-	if requestStatus == "accepted" {
+	if requestStatus == types.Accepted {
 		// If the request is accepted, create a friendship entry in the database
 		friend := &models.Friend{
-			UserMail:     senderEmail,
-			UserMail2:    receiverEmail,
-			FriendStatus: "friend",
+			UserEmail:    senderEmail,
+			UserEmail2:   receiverEmail,
+			FriendStatus: types.Friend,
 		}
 
 		if createErr := s.FriendService.Create(tx, friend); createErr != nil {
@@ -124,11 +124,11 @@ func (s *requestService) UpdateFriendshipRequest(receiverEmail, senderEmail stri
 
 		// Prepare the response data for accepted request
 		result = map[string]interface{}{
-			"status": "accepted",
+			"status": types.Accepted,
 			"user_data": map[string]interface{}{
-				"friend_mail": receiverEmail,      // Friend's email
-				"user_name":   userData.UserName,  // User's name
-				"user_photo":  userData.UserPhoto, // User's photo
+				"friend_email": receiverEmail,      // Friend's email
+				"user_name":    userData.UserName,  // User's name
+				"user_photo":   userData.UserPhoto, // User's photo
 			},
 		}
 
@@ -166,7 +166,7 @@ func (s *requestService) InsertAndReturnUser(request *models.Request) (map[strin
 	}
 
 	// Retrieve user data of the sender for the response
-	userData, err := s.UserService.GetByEmail(request.SenderMail)
+	userData, err := s.UserService.GetByEmail(request.SenderEmail)
 	if err != nil {
 		tx.Rollback() // Rollback the transaction on error
 		return nil, err
@@ -179,9 +179,9 @@ func (s *requestService) InsertAndReturnUser(request *models.Request) (map[strin
 
 	// Prepare the response data with sender's information
 	result := map[string]interface{}{
-		"sender_mail": request.SenderMail, // Sender's email
-		"user_name":   userData.UserName,  // User's name
-		"user_photo":  userData.UserPhoto, // User's photo
+		"sender_email": request.SenderEmail, // Sender's email
+		"user_name":    userData.UserName,   // User's name
+		"user_photo":   userData.UserPhoto,  // User's photo
 	}
 
 	return result, nil

@@ -4,25 +4,52 @@ services:
   database:
     image: postgres:latest
     restart: always
+    container_name: swiftchat_postgres
     environment:
-      - POSTGRES_DB=nettasec_global_db
-      - POSTGRES_USER=nettasec
-      - POSTGRES_PASSWORD=nettaseclocal
+      POSTGRES_DB: ${POSTGRE_DB}
+      POSTGRES_USER: ${POSTGRE_USER}
+      POSTGRES_PASSWORD: ${POSTGRE_PASSWORD}
     ports:
       - "5437:5432"
     volumes:
       - db:/var/lib/postgresql/data
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - swiftchat_network
 
   redis:
     image: redis:latest
     restart: always
+    container_name: swiftchat_redis
     ports:
       - "6379:6379"
-    command: ["redis-server", "--requirepass", "nettaseclocal"]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
     volumes:
       - redis:/data
+    networks:
+      - swiftchat_network
+
+  swiftchat_api:
+    build: .
+    container_name: swiftchat_api
+    ports:
+      - "9000:9000"
+    restart: on-failure
+    depends_on:
+      - database
+      - redis
+    environment:
+      - POSTGRE_HOST=swiftchat_postgres
+      - REDIS_HOST=swiftchat_redis:6379
+    env_file:
+      - .env
+    networks:
+      - swiftchat_network
 
 volumes:
   db:
   redis:
+
+networks:
+  swiftchat_network:
+    driver: bridge

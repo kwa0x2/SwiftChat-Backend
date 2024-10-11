@@ -32,15 +32,15 @@ func NewFriendService(friendRepository repository.IFriendRepository) IFriendServ
 // region "Create" adds a new friend to the database. If a friendship already exists, it updates the status
 func (s *friendService) Create(tx *gorm.DB, friend *models.Friend) error {
 	// Check if a specific friend relationship exists between the two users using the provided email addresses.
-	existingFriend, err := s.GetSpecificFriend(friend.UserMail, friend.UserMail2)
+	existingFriend, err := s.GetSpecificFriend(friend.UserEmail, friend.UserEmail2)
 	if err != nil {
 		return err
 	}
 
 	// If an existing friendship is found and the second user's email matches the provided friend's email,
-	if existingFriend != nil && existingFriend.UserMail == friend.UserMail2 {
+	if existingFriend != nil && existingFriend.UserEmail == friend.UserEmail2 {
 		// Update the status of the friendship to "Friend" (or a defined status) for the two users.
-		if updateErr := s.UpdateFriendStatusByMail(nil, friend.UserMail, existingFriend.UserMail, types.Friend); updateErr != nil {
+		if updateErr := s.UpdateFriendStatusByMail(nil, friend.UserEmail, existingFriend.UserEmail, types.Friend); updateErr != nil {
 			return updateErr
 		}
 		return nil
@@ -102,8 +102,8 @@ func (s *friendService) Block(userEmail, userEmail2 string) (string, error) {
 // endregion
 
 // region "IsBlocked" checks if a user is blocked by another user
-func (s *friendService) IsBlocked(userMail, otherUserMail string) (bool, error) {
-	return s.FriendRepository.IsBlocked(userMail, otherUserMail)
+func (s *friendService) IsBlocked(userEmail, otherUserEmail string) (bool, error) {
+	return s.FriendRepository.IsBlocked(userEmail, otherUserEmail)
 }
 
 // endregion

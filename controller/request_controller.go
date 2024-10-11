@@ -60,9 +60,9 @@ func (ctrl *requestController) GetRequests(ctx *gin.Context) {
 	var responseData []map[string]interface{}
 	for _, item := range data {
 		responseItem := map[string]interface{}{
-			"sender_mail": item.SenderMail,     // The email of the sender.
-			"user_name":   item.User.UserName,  // The name of the user who sent the request.
-			"user_photo":  item.User.UserPhoto, // The photo of the user who sent the request.
+			"sender_email": item.SenderEmail,    // The email of the sender.
+			"user_name":    item.User.UserName,  // The name of the user who sent the request.
+			"user_photo":   item.User.UserPhoto, // The photo of the user who sent the request.
 		}
 		// Add each response item to the response data array.
 		responseData = append(responseData, responseItem)
@@ -120,14 +120,18 @@ func (ctrl *requestController) SendFriend(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", err.Error()))
 		return
 	}
+	if userSessionInfo.Email == actionBody.Email {
+		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Self Request", "You cannot send a friend request to yourself"))
+		return
+	}
 
 	requestObj := models.Request{
-		SenderMail:   userSessionInfo.Email, // Sender's email from session.
-		ReceiverMail: actionBody.Email,      // Receiver's email from request body.
+		SenderEmail:   userSessionInfo.Email, // Sender's email from session.
+		ReceiverEmail: actionBody.Email,      // Receiver's email from request body.
 	}
 
 	var pgErr *pgconn.PgError
-	existingFriend, GetSpecificFriendErr := ctrl.FriendService.GetSpecificFriend(requestObj.SenderMail, requestObj.ReceiverMail)
+	existingFriend, GetSpecificFriendErr := ctrl.FriendService.GetSpecificFriend(requestObj.SenderEmail, requestObj.ReceiverEmail)
 	if GetSpecificFriendErr != nil && !errors.Is(GetSpecificFriendErr, gorm.ErrRecordNotFound) {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Unable to retrieve friend status"))
 		return
@@ -139,16 +143,16 @@ func (ctrl *requestController) SendFriend(ctx *gin.Context) {
 		if existingFriend.FriendStatus == types.Friend {
 			ctx.JSON(http.StatusConflict, utils.NewErrorResponse("Already Friend", "Users are already friends"))
 			return
-		} else if existingFriend.FriendStatus == types.BlockFirstSecond || existingFriend.FriendStatus == types.BlockSecondFirst {
+		} else if existingFriend.FriendStatus == types.Blocked {
 			ctx.JSON(http.StatusConflict, utils.NewErrorResponse("Blocked User", "Users are blocked"))
 			return
 		}
 	}
 
 	// Check if the receiver's email exists.
-	if isEmailExists := ctrl.UserService.IsEmailExists(requestObj.ReceiverMail); !isEmailExists {
+	if isEmailExists := ctrl.UserService.IsEmailExists(requestObj.ReceiverEmail); !isEmailExists {
 		// If not, create a new friend request.
-		if createErr := ctrl.RequestService.Create(nil, &requestObj); err != nil {
+		if createErr := ctrl.RequestService.Create(nil, &requestObj); createErr != nil {
 			if errors.As(createErr, &pgErr) && pgErr.Code == "23505" {
 				ctx.JSON(http.StatusConflict, utils.NewErrorResponse("Already Sent", "Duplicate friend request"))
 				return
@@ -158,7 +162,7 @@ func (ctrl *requestController) SendFriend(ctx *gin.Context) {
 		}
 
 		// Send email notification about the friend request.
-		_, SendEmailErr := ctrl.ResendService.SendEmail(requestObj.ReceiverMail, "You have received a new friend request from the SwiftChat app!", "friend_request")
+		_, SendEmailErr := ctrl.ResendService.SendEmail(requestObj.ReceiverEmail, "You have received a new friend request from the SwiftChat app!", "friend_request")
 		if SendEmailErr != nil {
 			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to send email"))
 			return
@@ -180,7 +184,7 @@ func (ctrl *requestController) SendFriend(ctx *gin.Context) {
 	}
 
 	// Emit a notification about the friend request to the socket gateway.
-	ctrl.SocketGateway.EmitToNotificationRoom("friend_request", requestObj.ReceiverMail, data)
+	ctrl.SocketGateway.EmitToNotificationRoom("friend_request", requestObj.ReceiverEmail, data)
 	ctx.JSON(http.StatusOK, utils.NewSuccessResponse("Friend Sent", "Friend request successfully sent"))
 }
 

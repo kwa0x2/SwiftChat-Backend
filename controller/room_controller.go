@@ -9,7 +9,7 @@ import (
 )
 
 type IRoomController interface {
-	GetOrCreatePrivateRoom(ctx *gin.Context)
+	GetOrCreateRoom(ctx *gin.Context)
 	GetChatList(ctx *gin.Context)
 }
 
@@ -37,8 +37,8 @@ type ActionBody struct {
 
 // endregion
 
-// region "GetOrCreatePrivateRoom" handles the request to retrieve or create a private chat room.
-func (ctrl *roomController) GetOrCreatePrivateRoom(ctx *gin.Context) {
+// region "GetOrCreateRoom" handles the request to retrieve or create a chat room.
+func (ctrl *roomController) GetOrCreateRoom(ctx *gin.Context) {
 	var actionBody ActionBody
 
 	// Bind JSON request body to ActionBody struct.
@@ -61,8 +61,8 @@ func (ctrl *roomController) GetOrCreatePrivateRoom(ctx *gin.Context) {
 		return
 	}
 
-	// Check if a private room already exists between the current user and the fetched user.
-	room, roomErr := ctrl.UserRoomService.GetPrivateRoom(userSessionInfo.ID, user.UserID)
+	// Check if a room already exists between the current user and the fetched user.
+	room, roomErr := ctrl.UserRoomService.GetRoom(userSessionInfo.ID, user.UserID)
 	if roomErr != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error retrieving private room"))
 		return
@@ -70,9 +70,9 @@ func (ctrl *roomController) GetOrCreatePrivateRoom(ctx *gin.Context) {
 
 	var roomId string
 
-	// If no room exists, create a new private room and add users to it.
+	// If no room exists, create a new room and add users to it.
 	if room == "" {
-		newRoomId, newRoomErr := ctrl.RoomService.CreateAndAddUsers(userSessionInfo.ID, user.UserID, "private")
+		newRoomId, newRoomErr := ctrl.RoomService.CreateAndAddUsers(userSessionInfo.ID, user.UserID)
 		if newRoomErr != nil {
 			// If there's an error creating the room, return an internal server error response.
 			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error creating and adding users to room"))

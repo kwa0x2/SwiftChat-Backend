@@ -75,7 +75,7 @@ func (r *friendRepository) UpdateFriendStatusByMail(tx *gorm.DB, userEmail, user
 	}
 
 	result := db.Model(&models.Friend{}).Unscoped().
-		Where("(user_mail = ? AND user_mail2 = ?) OR (user_mail2 = ? AND user_mail = ?)", userEmail, userEmail2, userEmail, userEmail2).
+		Where("(user_email = ? AND user_email2 = ?) OR (user_email2 = ? AND user_email = ?)", userEmail, userEmail2, userEmail, userEmail2).
 		Updates(map[string]interface{}{
 			"friend_status": friendStatus,
 			"deletedAt":     nil, // Reset the deletedAt field
@@ -97,7 +97,7 @@ func (r *friendRepository) UpdateFriendStatusByMail(tx *gorm.DB, userEmail, user
 // region "Delete" removes a friend relationship from the database
 func (r *friendRepository) Delete(UserEmail, UserEmail2 string) error {
 	if err := r.DB.
-		Where("(user_mail = ? AND user_mail2 = ?) OR (user_mail = ? AND user_mail2 = ?)",
+		Where("(user_email = ? AND user_email2 = ?) OR (user_email = ? AND user_email2 = ?)",
 			UserEmail,
 			UserEmail2,
 			UserEmail2,
@@ -119,15 +119,15 @@ func (r *friendRepository) GetFriends(userEmail string, isUnFriendStatusAllow bo
 
 	// Adjust the query based on the isUnFriendStatusAllow flag
 	if isUnFriendStatusAllow {
-		query = query.Unscoped().Where("user_mail = ? AND (friend_status = ? OR friend_status = ?)", userEmail, "friend", "unfriend").
-			Or("user_mail2 = ? AND (friend_status = ? OR friend_status = ?)", userEmail, "friend", "unfriend")
+		query = query.Unscoped().Where("user_email = ? AND (friend_status = ? OR friend_status = ?)", userEmail, types.Friend, types.UnFriend).
+			Or("user_email2 = ? AND (friend_status = ? OR friend_status = ?)", userEmail, types.Friend, types.UnFriend)
 	} else {
-		query = query.Where("user_mail = ? AND friend_status = ?", userEmail, "friend").
-			Or("user_mail2 = ? AND friend_status = ?", userEmail, "friend")
+		query = query.Where("user_email = ? AND friend_status = ?", userEmail, types.Friend).
+			Or("user_email2 = ? AND friend_status = ?", userEmail, types.Friend)
 	}
 
 	if err := query.Preload("User").
-		Select("CASE WHEN user_mail = ? THEN user_mail2 ELSE user_mail END as user_mail", userEmail).
+		Select("CASE WHEN user_email = ? THEN user_email2 ELSE user_email END as user_email", userEmail).
 		Find(&friends).Error; err != nil {
 		return nil, err
 	}
@@ -142,9 +142,9 @@ func (r *friendRepository) GetSpecificFriend(userEmail, userEmail2 string) (*mod
 	var friend models.Friend
 
 	if err := r.DB.Unscoped().
-		Select("friend_status, CASE WHEN user_mail = ? THEN user_mail2 ELSE user_mail END as user_mail", userEmail).
-		Where("(user_mail = ? AND user_mail2 = ?)", userEmail, userEmail2).
-		Or("(user_mail2 = ? AND user_mail = ?)", userEmail, userEmail2).
+		Select("friend_status, CASE WHEN user_email = ? THEN user_email2 ELSE user_email END as user_email", userEmail).
+		Where("(user_email = ? AND user_email2 = ?)", userEmail, userEmail2).
+		Or("(user_email2 = ? AND user_email = ?)", userEmail, userEmail2).
 		First(&friend).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -163,9 +163,9 @@ func (r *friendRepository) GetBlockedUsers(userEmail string) ([]*models.Friend, 
 
 	if err := r.DB.
 		Preload("User").
-		Select("CASE WHEN user_mail = ? THEN user_mail2 ELSE user_mail END as user_mail", userEmail).
-		Where("user_mail = ? AND friend_status = ?", userEmail, "block_first_second").
-		Or("user_mail2 = ? AND friend_status = ?", userEmail, "block_second_first").
+		Select("CASE WHEN user_email = ? THEN user_email2 ELSE user_email END as user_email", userEmail).
+		Where("user_email = ? AND friend_status = ?", userEmail, types.Blocked).
+		Or("user_email2 = ? AND friend_status = ?", userEmail, types.Blocked).
 		Find(&friends).Error; err != nil {
 		return nil, err
 	}
@@ -177,33 +177,17 @@ func (r *friendRepository) GetBlockedUsers(userEmail string) ([]*models.Friend, 
 
 // region "Block" updates the status of a friendship to blocked
 func (r *friendRepository) Block(userEmail, userEmail2 string) (string, error) {
-	var existingFriend models.Friend
-
 	// Check if the friendship exists
 	if err := r.DB.
-		Where("(user_mail = ? AND user_mail2 = ?) OR (user_mail = ? AND user_mail2 = ?)", userEmail, userEmail2, userEmail2, userEmail).
-		First(&existingFriend).Error; err != nil {
+		Where("(user_email = ? AND user_email2 = ?) OR (user_email = ? AND user_email2 = ?)", userEmail, userEmail2, userEmail2, userEmail).
+		Updates(&models.Friend{FriendStatus: types.Blocked}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", fmt.Errorf("friendship not found")
 		}
 		return "", err
 	}
 
-	// Update the friendship status based on the current status
-	switch existingFriend.FriendStatus {
-	case "friend":
-		if existingFriend.UserMail2 == userEmail {
-			existingFriend.FriendStatus = "block_first_second" // Set to blocked status for user_email2
-		} else {
-			existingFriend.FriendStatus = "block_second_first" // Set to blocked status for user_email
-		}
-	}
-
-	if err := r.DB.Save(&existingFriend).Error; err != nil {
-		return "", err
-	}
-
-	return string(existingFriend.FriendStatus), nil
+	return "", nil
 }
 
 // endregion
@@ -213,9 +197,9 @@ func (r *friendRepository) IsBlocked(userEmail, userEmail2 string) (bool, error)
 	var count int64
 
 	if err := r.DB.Model(&models.Friend{}).
-		Where("(user_mail = ? OR user_mail2 = ?) AND (user_mail = ? OR user_mail2 = ?)",
-							userEmail, userEmail, userEmail2, userEmail2).
-		Where("friend_status != ?", "friend"). // kontrol lazim unfriend durumu
+		Where("(user_email = ? OR user_email2 = ?) AND (user_email = ? OR user_email2 = ?)",
+			userEmail, userEmail, userEmail2, userEmail2).
+		Where("friend_status = ?", types.Blocked).
 		Count(&count).Error; err != nil {
 		return false, err
 	}

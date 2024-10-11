@@ -35,7 +35,7 @@ func (r *userRepository) IsFieldUnique(whereUser *models.User) bool {
 // region "IsFieldExists" checks if the specified fields in the User model exist in the database.
 func (r *userRepository) IsFieldExists(whereUser *models.User) bool {
 	var count int64
-	r.DB.Model(&models.User{}).Debug().Where(whereUser).Count(&count)
+	r.DB.Model(&models.User{}).Where(whereUser).Count(&count)
 	return count > 0
 }
 
