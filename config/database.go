@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/getsentry/sentry-go"
 	"os"
 	"time"
 
@@ -23,12 +24,14 @@ func PostgreConnection() {
 	}})
 
 	if err != nil {
+		sentry.CaptureException(err)
 		panic(err) // Panic if there is an error while connecting.
 	}
 
 	// Get the generic database object from GORM.
 	sqlDb, err := db.DB()
 	if err != nil {
+		sentry.CaptureException(err)
 		panic(err)
 	}
 

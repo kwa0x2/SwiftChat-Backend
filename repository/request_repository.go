@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/getsentry/sentry-go"
 	"github.com/kwa0x2/swiftchat-backend/models"
 	"github.com/kwa0x2/swiftchat-backend/types"
 	"gorm.io/gorm"
@@ -34,6 +35,7 @@ func (r *requestRepository) Create(tx *gorm.DB, request *models.Request) error {
 	}
 
 	if err := db.Create(&request).Error; err != nil {
+		sentry.CaptureException(err)
 		return err
 	}
 	return nil
@@ -51,6 +53,8 @@ func (r *requestRepository) Update(tx *gorm.DB, whereRequest *models.Request, up
 	result := db.Model(&models.Request{}).Where(whereRequest).Updates(updateRequest)
 
 	if result.Error != nil {
+		sentry.CaptureException(result.Error)
+
 		return result.Error // Return error if update fails
 	}
 
@@ -74,6 +78,7 @@ func (r *requestRepository) Delete(tx *gorm.DB, whereRequest *models.Request) er
 		Delete(&models.Request{})
 
 	if result.Error != nil {
+		sentry.CaptureException(result.Error)
 		return result.Error // Return error if deletion fails
 	}
 
@@ -94,6 +99,7 @@ func (r *requestRepository) GetRequests(receiverEmail string) ([]*models.Request
 		Where(&models.Request{ReceiverEmail: receiverEmail, RequestStatus: types.Pending}).
 		Preload("User").
 		Find(&requests).Error; err != nil {
+		sentry.CaptureException(err)
 		return nil, err
 	}
 
@@ -109,6 +115,7 @@ func (r *requestRepository) GetSentRequests(senderEmail string) ([]*models.Reque
 	if err := r.DB.
 		Where(&models.Request{SenderEmail: senderEmail, RequestStatus: types.Pending}).
 		Find(&requests).Error; err != nil {
+		sentry.CaptureException(err)
 		return nil, err
 	}
 
@@ -122,6 +129,7 @@ func (r *requestRepository) InsertAndReturnUser(request *models.Request) (*model
 	var requestData *models.Request
 
 	if err := r.DB.Create(request).Preload("User").Find(&requestData).Error; err != nil {
+		sentry.CaptureException(err)
 		return nil, err
 	}
 

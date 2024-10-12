@@ -36,6 +36,7 @@ func (ctrl *messageController) GetMessageHistory(ctx *gin.Context) {
 
 	// Bind JSON request body to the MessageHistoryBody struct.
 	if err := ctx.BindJSON(&messageHistoryBody); err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
@@ -43,6 +44,7 @@ func (ctrl *messageController) GetMessageHistory(ctx *gin.Context) {
 	// Retrieve message history data using the provided room ID.
 	messageHistoryData, err := ctrl.MessageService.GetMessageHistoryByRoomID(messageHistoryBody.RoomID)
 	if err != nil {
+		utils.HandleErrorWithSentry(ctx, err, map[string]interface{}{"room_id": messageHistoryBody.RoomID})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error retrieving message history by room id."))
 		return
 	}

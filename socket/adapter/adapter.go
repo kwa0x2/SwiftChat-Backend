@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"fmt"
+	"github.com/getsentry/sentry-go"
 	"github.com/kwa0x2/swiftchat-backend/service"
 	"github.com/kwa0x2/swiftchat-backend/socket/gateway"
 	"github.com/zishang520/socket.io/socket"
@@ -82,18 +83,21 @@ func (adapter *socketAdapter) EmitToFriendsAndSentRequests(event, userEmail stri
 	// Retrieve the list of friends for the given userEmail.
 	friends, err := adapter.FriendService.GetFriends(userEmail, true)
 	if err != nil {
+		sentry.CaptureException(err)
 		return err
 	}
 
 	// Retrieve the list of sent friend requests by the user.
 	requests, ReqErr := adapter.RequestService.GetSentRequests(userEmail)
 	if ReqErr != nil {
+		sentry.CaptureException(err)
 		return ReqErr
 	}
 
 	// Retrieve the list of blocked users.
 	blockedUsers, BlockedErr := adapter.FriendService.GetBlockedUsers(userEmail)
 	if BlockedErr != nil {
+		sentry.CaptureException(err)
 		return BlockedErr
 	}
 

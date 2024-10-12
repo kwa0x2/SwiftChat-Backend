@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/getsentry/sentry-go"
 	"github.com/google/uuid"
 	"github.com/kwa0x2/swiftchat-backend/models"
 	"gorm.io/gorm"
@@ -29,6 +30,7 @@ func (r *userRoomRepository) Create(tx *gorm.DB, userRoom *models.UserRoom) erro
 	}
 
 	if err := db.Create(&userRoom).Error; err != nil {
+		sentry.CaptureException(err)
 		return err
 	}
 	return nil
@@ -55,6 +57,7 @@ func (r *userRoomRepository) GetRoom(userId1, userId2 string) (string, error) {
 		Group(`"USER_ROOM".room_id`).
 		Having("COUNT(DISTINCT user_id) = 2").
 		Find(&userRooms).Error; err != nil {
+		sentry.CaptureException(err)
 		return "", err
 	}
 

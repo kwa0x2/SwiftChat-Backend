@@ -24,6 +24,7 @@ func (ctrl *fileController) UploadFile(ctx *gin.Context) {
 	// Extract the file from the form data
 	file, header, err := ctx.Request.FormFile("file")
 	if err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Form File Error", err.Error()))
 		return
 	}
@@ -34,6 +35,9 @@ func (ctrl *fileController) UploadFile(ctx *gin.Context) {
 	// Upload the file to the S3 bucket and retrieve the file URL.
 	fileURL, fileErr := ctrl.S3Service.UploadFile(file, header)
 	if fileErr != nil {
+		utils.HandleErrorWithSentry(ctx, fileErr, map[string]interface{}{
+			"filename": header.Filename,
+		})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error uploading file to S3 bucket"))
 		return
 	}

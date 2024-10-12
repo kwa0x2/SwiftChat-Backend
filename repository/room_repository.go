@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/getsentry/sentry-go"
 	"github.com/google/uuid"
 	"github.com/kwa0x2/swiftchat-backend/models"
 	"github.com/kwa0x2/swiftchat-backend/types"
@@ -31,6 +32,7 @@ func (r *roomRepository) Create(tx *gorm.DB, room *models.Room) (*models.Room, e
 		db = tx // Use the provided transaction if available
 	}
 	if err := db.Create(&room).Error; err != nil {
+		sentry.CaptureException(err)
 		return nil, err
 	}
 	return room, nil
@@ -45,6 +47,7 @@ func (r *roomRepository) Update(tx *gorm.DB, whereRoom *models.Room, updateRoom 
 		db = tx // Use the provided transaction if available
 	}
 	if err := db.Model(&models.Room{}).Debug().Where(whereRoom).Updates(updateRoom).Error; err != nil {
+		sentry.CaptureException(err)
 		return err
 	}
 	return nil
@@ -89,6 +92,7 @@ func (r *roomRepository) GetChatList(userId, userEmail string) ([]*ChatList, err
 		Where(`"ROOM"."deletedAt" IS NULL`).
 		Order(`"ROOM".room_id, "ROOM"."updatedAt" DESC`).
 		Scan(&chatLists).Error; err != nil {
+		sentry.CaptureException(err)
 		return nil, err
 	}
 

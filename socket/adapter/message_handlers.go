@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"errors"
+	"github.com/getsentry/sentry-go"
 	"github.com/google/uuid"
 	"github.com/kwa0x2/swiftchat-backend/models"
 	"github.com/kwa0x2/swiftchat-backend/types"
@@ -132,12 +133,14 @@ func (adapter *socketAdapter) handleEditMessage(args ...any) {
 
 	messageID, err := uuid.Parse(data["message_id"].(string))
 	if err != nil {
+		sentry.CaptureException(err)
 		utils.LogError(callback, "invalid message_id format")
 		return
 	}
 
 	editErr := adapter.EditMessage(data["user_email"].(string), data["room_id"].(string), data["edited_message"].(string), messageID)
 	if editErr != nil {
+		sentry.CaptureException(editErr)
 		utils.LogError(callback, editErr.Error())
 		return
 	}
@@ -150,6 +153,7 @@ func (adapter *socketAdapter) handleEditMessage(args ...any) {
 func (adapter *socketAdapter) EditMessage(connectedUserMail, roomId, editedMessage string, messageId uuid.UUID) error {
 	// Update the message by its ID.
 	if err := adapter.MessageService.UpdateMessageById(messageId, editedMessage); err != nil {
+		sentry.CaptureException(err)
 		return err
 	}
 
@@ -178,12 +182,14 @@ func (adapter *socketAdapter) handleUpdateMessageStarred(args ...any) {
 
 	messageID, err := uuid.Parse(data["message_id"].(string))
 	if err != nil {
+		sentry.CaptureException(err)
 		utils.LogError(callback, "invalid message_id format")
 		return
 	}
 
 	starErr := adapter.UpdateMessageStarred(data["room_id"].(string), messageID, data["message_starred"].(bool))
 	if starErr != nil {
+		sentry.CaptureException(starErr)
 		utils.LogError(callback, starErr.Error())
 		return
 	}
@@ -196,6 +202,7 @@ func (adapter *socketAdapter) handleUpdateMessageStarred(args ...any) {
 func (adapter *socketAdapter) UpdateMessageStarred(roomId string, messageId uuid.UUID, messageStarred bool) error {
 	// Update the message type in the database.
 	if err := adapter.MessageService.UpdateMessageStarredById(messageId, messageStarred); err != nil {
+		sentry.CaptureException(err)
 		return err
 	}
 
@@ -222,6 +229,7 @@ func (adapter *socketAdapter) handleReadMessage(connectedUserID string, args ...
 	if !okMessage || messageId == "" { // If no message ID is provided.
 		err := adapter.ReadMessage(connectedUserID, data["room_id"].(string), nil) // Read the room without specific message.
 		if err != nil {
+			sentry.CaptureException(err)
 			utils.LogError(callback, err.Error())
 			return
 		}
@@ -232,6 +240,7 @@ func (adapter *socketAdapter) handleReadMessage(connectedUserID string, args ...
 	// Attempt to read the specific message.
 	err := adapter.ReadMessage(connectedUserID, data["room_id"].(string), &messageId)
 	if err != nil {
+		sentry.CaptureException(err)
 		utils.LogError(callback, err.Error())
 		return
 	}
