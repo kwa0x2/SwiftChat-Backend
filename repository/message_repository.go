@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/getsentry/sentry-go"
 	"github.com/google/uuid"
 	"github.com/kwa0x2/swiftchat-backend/models"
 	"github.com/kwa0x2/swiftchat-backend/types"
@@ -34,6 +35,7 @@ func (r *messageRepository) Create(tx *gorm.DB, message *models.Message) (*model
 	}
 
 	if err := db.Create(&message).Error; err != nil {
+		sentry.CaptureException(err)
 		return nil, err
 	}
 	return message, nil
@@ -52,18 +54,30 @@ func (r *messageRepository) Update(whereMessage *models.Message, updateMessage *
 
 	// If exceptUpdatedAt is true, use Updates, which automatically handles `updated_at`.
 	if exceptUpdatedAt {
-		return query.Updates(updateMessage).Error
+		if err := query.Updates(updateMessage).Error; err != nil {
+			sentry.CaptureException(err)
+			return err
+		}
+		return nil
 	}
 
 	// Otherwise, use UpdateColumns to update specific fields without updating `updated_at`.
-	return query.UpdateColumns(updateMessage).Error
+	if err := query.UpdateColumns(updateMessage).Error; err != nil {
+		sentry.CaptureException(err)
+		return err
+	}
+	return nil
 }
 
 // endregion
 
 // region "Delete" removes a message from the database
 func (r *messageRepository) Delete(whereMessage *models.Message) error {
-	return r.DB.Delete(whereMessage).Error
+	if err := r.DB.Delete(whereMessage).Error; err != nil {
+		sentry.CaptureException(err)
+		return err
+	}
+	return nil
 }
 
 // endregion
@@ -76,7 +90,11 @@ func (r *messageRepository) ReadMessageByRoomId(connectedUserID, roomId string, 
 		query = query.Where("message_id = ?", *messageId) // Filter by message ID if provided
 	}
 
-	return query.UpdateColumns(&models.Message{MessageReadStatus: types.Readed}).Error
+	if err := query.UpdateColumns(&models.Message{MessageReadStatus: types.Readed}).Error; err != nil {
+		sentry.CaptureException(err)
+		return err
+	}
+	return nil
 }
 
 // endregion
@@ -100,6 +118,7 @@ func (r *messageRepository) GetMessageHistoryByRoomID(roomId uuid.UUID) ([]*mode
 		Where(&models.Message{RoomID: roomId}).
 		Order(`"createdAt" ASC`).
 		Find(&messages).Error; err != nil {
+		sentry.CaptureException(err)
 		return nil, err
 	}
 

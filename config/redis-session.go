@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/getsentry/sentry-go"
 	"os"
 
 	"github.com/gin-contrib/sessions"
@@ -12,6 +13,7 @@ func RedisSession() redis.Store {
 	// Create a new Redis store with the given parameters.
 	store, err := redis.NewStore(10, "tcp", os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PASSWORD"), []byte(os.Getenv("SESSION_SECRET_KEY")))
 	if err != nil {
+		sentry.CaptureException(err)
 		panic(err) // Panic if there is an error while creating the store.
 	}
 

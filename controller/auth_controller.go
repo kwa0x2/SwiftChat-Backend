@@ -59,6 +59,7 @@ func (ctrl *authController) GoogleCallback(ctx *gin.Context) {
 
 	// Validate the state parameter to prevent CSRF attacks
 	if _, exists := stateStore.Load(state); !exists {
+		utils.HandleErrorWithSentry(ctx, nil, map[string]interface{}{"state": state})
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Bad Request", "Invalid state parameter. Please try again"))
 		return
 	}
@@ -68,6 +69,7 @@ func (ctrl *authController) GoogleCallback(ctx *gin.Context) {
 	// Exchange the authorization code for a token
 	token, err := googleConfig.Exchange(context.Background(), code)
 	if err != nil {
+		utils.HandleErrorWithSentry(ctx, err, map[string]interface{}{"code": code})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Code-Token Exchange Failed"))
 		return
 	}
@@ -75,6 +77,7 @@ func (ctrl *authController) GoogleCallback(ctx *gin.Context) {
 	// Fetch user information from Google
 	resp, respErr := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
 	if respErr != nil {
+		utils.HandleErrorWithSentry(ctx, respErr, map[string]interface{}{"access_token": token.AccessToken})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "User data fetch failed"))
 		return
 	}
@@ -83,6 +86,7 @@ func (ctrl *authController) GoogleCallback(ctx *gin.Context) {
 	var userData map[string]interface{}
 	err = json.NewDecoder(resp.Body).Decode(&userData)
 	if err != nil {
+		utils.HandleErrorWithSentry(ctx, err, map[string]interface{}{"response_body": resp.Body})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "JSON Parsing Failed"))
 		return
 	}
@@ -92,6 +96,7 @@ func (ctrl *authController) GoogleCallback(ctx *gin.Context) {
 		// If the user ID is not unique, it means the user already exists in our database
 		user, getUserErr := ctrl.UserService.GetUserById(userData["id"].(string))
 		if getUserErr != nil {
+			utils.HandleErrorWithSentry(ctx, getUserErr, map[string]interface{}{"user_id": userData["id"]})
 			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to retrieve user by ID"))
 			return
 		}
@@ -121,6 +126,7 @@ func (ctrl *authController) GoogleCallback(ctx *gin.Context) {
 	// Generate JWT token
 	tokenString, tokenErr := utils.GenerateToken(jwtClaims)
 	if tokenErr != nil {
+		utils.HandleErrorWithSentry(ctx, tokenErr, map[string]interface{}{"jwt_claims": jwtClaims})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "JWT Token Failed"))
 		return
 	}
@@ -173,6 +179,7 @@ type SignUpBody struct {
 func (ctrl *authController) SignUp(ctx *gin.Context) {
 	var signUpBody SignUpBody
 	if err := ctx.BindJSON(&signUpBody); err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
@@ -180,6 +187,7 @@ func (ctrl *authController) SignUp(ctx *gin.Context) {
 	// Retrieve JWT claims from the authorization header
 	claims, err := utils.GetClaims(ctx.GetHeader("Authorization"))
 	if err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to retrieve JWT claims"))
 		return
 	}
@@ -209,6 +217,7 @@ func (ctrl *authController) SignUp(ctx *gin.Context) {
 	// Insert the new user into the database
 	user, createErr := ctrl.UserService.Create(&userInsertObj)
 	if createErr != nil {
+		utils.HandleErrorWithSentry(ctx, createErr, map[string]interface{}{"user": userInsertObj})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to insert new user into database"))
 		return
 	}

@@ -15,7 +15,7 @@ type IFriendService interface {
 	GetFriends(userEmail string, isUnFriendStatusAllow bool) ([]*models.Friend, error)
 	GetSpecificFriend(userEmail, userEmail2 string) (*models.Friend, error)
 	GetBlockedUsers(userEmail string) ([]*models.Friend, error)
-	Block(userEmail, userEmail2 string) (string, error)
+	Block(userEmail, userEmail2 string) error
 	IsBlocked(userMail, otherUserMail string) (bool, error)
 }
 
@@ -95,7 +95,7 @@ func (s *friendService) GetBlockedUsers(userEmail string) ([]*models.Friend, err
 // endregion
 
 // region "Block" updates the status of a friendship to blocked
-func (s *friendService) Block(userEmail, userEmail2 string) (string, error) {
+func (s *friendService) Block(userEmail, userEmail2 string) error {
 	return s.FriendRepository.Block(userEmail, userEmail2)
 }
 

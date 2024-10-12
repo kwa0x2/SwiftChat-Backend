@@ -44,6 +44,7 @@ func (ctrl *userController) UpdateUsername(ctx *gin.Context) {
 
 	// Bind JSON request body to UsernameUpdateBody struct.
 	if err := ctx.BindJSON(&requestBody); err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
@@ -51,12 +52,14 @@ func (ctrl *userController) UpdateUsername(ctx *gin.Context) {
 	// Get user session information.
 	userSessionInfo, sessionErr := utils.GetUserSessionInfo(ctx)
 	if sessionErr != nil {
+		utils.HandleErrorWithSentry(ctx, sessionErr, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", sessionErr.Error()))
 		return
 	}
 
 	// Update the user's username in the database using their email.
 	if err := ctrl.UserService.UpdateUserNameByMail(requestBody.UserName, userSessionInfo.Email); err != nil {
+		utils.HandleErrorWithSentry(ctx, err, map[string]interface{}{"email": userSessionInfo.Email})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error updating username by email"))
 		return
 	}
@@ -73,6 +76,7 @@ func (ctrl *userController) UpdateUsername(ctx *gin.Context) {
 
 	// Emit the username update notification to friends using the socket adapter.
 	if err := ctrl.SocketAdapter.EmitToFriendsAndSentRequests("update_username", userSessionInfo.Email, emitData); err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to emit update username notification to friends"))
 		return
 	}
@@ -87,6 +91,7 @@ func (ctrl *userController) UploadProfilePhoto(ctx *gin.Context) {
 	// Retrieve the file from the form data.
 	file, header, err := ctx.Request.FormFile("file")
 	if err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Form File Error", err.Error()))
 		return
 	}
@@ -102,12 +107,14 @@ func (ctrl *userController) UploadProfilePhoto(ctx *gin.Context) {
 	// Upload the file to the S3 bucket and retrieve the file URL.
 	fileURL, UploadErr := ctrl.S3Service.UploadFile(file, header)
 	if UploadErr != nil {
+		utils.HandleErrorWithSentry(ctx, UploadErr, map[string]interface{}{"filename": header.Filename})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error uploading file to S3 bucket"))
 		return
 	}
 
 	// Update the user's photo in the database using their email.
 	if UpdateErr := ctrl.UserService.UpdateUserPhotoByMail(fileURL, userEmail.(string)); UpdateErr != nil {
+		utils.HandleErrorWithSentry(ctx, UpdateErr, map[string]interface{}{"user_email": userEmail})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error updating user photo"))
 		return
 	}
@@ -127,6 +134,7 @@ func (ctrl *userController) UploadProfilePhoto(ctx *gin.Context) {
 
 	// Emit the photo update notification to friends using the socket adapter.
 	if EmitErr := ctrl.SocketAdapter.EmitToFriendsAndSentRequests("update_user_photo", userEmail.(string), emitData); EmitErr != nil {
+		utils.HandleErrorWithSentry(ctx, EmitErr, nil)
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to emit update user photo notification to friends"))
 		return
 	}

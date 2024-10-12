@@ -38,6 +38,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.26.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.30.8 // indirect
 	github.com/aws/smithy-go v1.20.4 // indirect
+	github.com/getsentry/sentry-go v0.29.0 // indirect
 	github.com/zishang520/socket.io-go-parser v1.0.4 // indirect
 )
 

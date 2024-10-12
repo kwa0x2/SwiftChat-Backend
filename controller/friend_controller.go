@@ -33,6 +33,7 @@ func (ctrl *friendController) GetFriends(ctx *gin.Context) {
 	// Get user session information
 	userSessionInfo, err := utils.GetUserSessionInfo(ctx)
 	if err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", err.Error()))
 		return
 	}
@@ -40,6 +41,7 @@ func (ctrl *friendController) GetFriends(ctx *gin.Context) {
 	// Retrieve the user's friends, with the second parameter 'false' indicating that only friends (not unfriended users) should be fetched.
 	friends, GetFriendsErr := ctrl.FriendService.GetFriends(userSessionInfo.Email, false)
 	if GetFriendsErr != nil {
+		utils.HandleErrorWithSentry(ctx, GetFriendsErr, map[string]interface{}{"user_email": userSessionInfo.Email})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error retrieving friends"))
 		return
 	}
@@ -65,6 +67,7 @@ func (ctrl *friendController) GetBlockedUsers(ctx *gin.Context) {
 	// Get user session information
 	userSessionInfo, err := utils.GetUserSessionInfo(ctx)
 	if err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", err.Error()))
 		return
 	}
@@ -72,6 +75,7 @@ func (ctrl *friendController) GetBlockedUsers(ctx *gin.Context) {
 	// Fetch blocked users from the FriendService
 	blockedUsers, GetBlockedUsersErr := ctrl.FriendService.GetBlockedUsers(userSessionInfo.Email)
 	if GetBlockedUsersErr != nil {
+		utils.HandleErrorWithSentry(ctx, GetBlockedUsersErr, map[string]interface{}{"user_email": userSessionInfo.Email})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error retrieving blocked users"))
 		return
 	}
@@ -97,6 +101,7 @@ func (ctrl *friendController) Block(ctx *gin.Context) {
 
 	// Bind the JSON body to the actionBody struct
 	if err := ctx.BindJSON(&actionBody); err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
@@ -104,13 +109,15 @@ func (ctrl *friendController) Block(ctx *gin.Context) {
 	// Get user session information
 	userSessionInfo, userSessionErr := utils.GetUserSessionInfo(ctx)
 	if userSessionErr != nil {
+		utils.HandleErrorWithSentry(ctx, userSessionErr, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", userSessionErr.Error()))
 		return
 	}
 
 	// Block the user using the FriendService
-	friendStatus, blockErr := ctrl.FriendService.Block(actionBody.Email, userSessionInfo.Email)
+	blockErr := ctrl.FriendService.Block(actionBody.Email, userSessionInfo.Email)
 	if blockErr != nil {
+		utils.HandleErrorWithSentry(ctx, blockErr, map[string]interface{}{"user_email": userSessionInfo.Email})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error blocking the user"))
 		return
 	}
@@ -118,7 +125,7 @@ func (ctrl *friendController) Block(ctx *gin.Context) {
 	// Prepare the notification data
 	notifyData := map[string]interface{}{
 		"friend_email":  userSessionInfo.Email, // Email of the user who is blocking
-		"friend_status": friendStatus,          // Status of the blocking action
+		"friend_status": "blocked",             // Status of the blocking action
 	}
 
 	// Emit a socket event to notify about the blocked friend
@@ -134,6 +141,7 @@ func (ctrl *friendController) Delete(ctx *gin.Context) {
 
 	// Bind the JSON body to the actionBody struct
 	if err := ctx.BindJSON(&actionBody); err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
@@ -141,12 +149,14 @@ func (ctrl *friendController) Delete(ctx *gin.Context) {
 	// Get user session information
 	userSessionInfo, userSessionErr := utils.GetUserSessionInfo(ctx)
 	if userSessionErr != nil {
+		utils.HandleErrorWithSentry(ctx, userSessionErr, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", userSessionErr.Error()))
 		return
 	}
 
 	// Delete the friend using the FriendService
 	if err := ctrl.FriendService.Delete(actionBody.Email, userSessionInfo.Email); err != nil {
+		utils.HandleErrorWithSentry(ctx, err, map[string]interface{}{"user_email": userSessionInfo.Email})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Delete Friend Error", "Error delete the user"))
 		return
 	}

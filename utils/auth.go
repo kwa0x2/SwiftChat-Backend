@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"github.com/getsentry/sentry-go"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"os"
@@ -26,6 +27,7 @@ func GenerateToken(jwtClaims jwt.MapClaims) (string, error) {
 	// Sign the token with the secret key and return the token string.
 	tokenString, err := token.SignedString(secretKey)
 	if err != nil {
+		sentry.CaptureException(err)
 		return "", err // Return an error if signing fails.
 	}
 
@@ -42,6 +44,7 @@ func VerifyToken(tokenString string) error {
 	})
 
 	if err != nil {
+		sentry.CaptureException(err)
 		return err // Return an error if parsing fails.
 	}
 
@@ -59,6 +62,7 @@ func GetClaims(tokenString string) (map[string]interface{}, error) {
 	// Verify the token before extracting claims.
 	err := VerifyToken(tokenString)
 	if err != nil {
+		sentry.CaptureException(err)
 		return nil, err // Return nil if token verification fails.
 	}
 
@@ -69,6 +73,7 @@ func GetClaims(tokenString string) (map[string]interface{}, error) {
 	})
 
 	if parseErr != nil {
+		sentry.CaptureException(parseErr)
 		return nil, parseErr // Return an error if parsing fails.
 	}
 

@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"github.com/getsentry/sentry-go"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -15,6 +16,7 @@ var S3Client *s3.Client
 func InitS3() {
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(os.Getenv("AWS_REGION")))
 	if err != nil {
+		sentry.CaptureException(err)
 		panic("Failed to load AWS configuration") // Panic if there is an error while loading AWS configuration.
 	}
 

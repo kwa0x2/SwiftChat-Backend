@@ -1,6 +1,7 @@
 package app
 
 import (
+	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -27,7 +28,12 @@ func NewApp() *App {
 	socketServer := socket.NewServer(nil, nil)                    // Create a new Socket.IO server
 	resendClient := resend.NewClient(os.Getenv("RESEND_API_KEY")) // Initialize the Resend client with the API key from environment variables
 	store := config.RedisSession()                                // Initialize Redis session store
+	config.InitSentry()                                           // Initialize Sentry for error tracking
 
+	// Add Sentry middleware for error reporting
+	router.Use(sentrygin.New(sentrygin.Options{
+		Repanic: true,
+	}))
 	// Middleware for sessions and CORS
 	router.Use(sessions.Sessions("connect.sid", store)) // Use session management middleware
 	router.Use(cors.New(cors.Config{

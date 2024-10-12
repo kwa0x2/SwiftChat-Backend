@@ -3,6 +3,7 @@ package repository
 import (
 	"errors"
 	"fmt"
+	"github.com/getsentry/sentry-go"
 	"github.com/kwa0x2/swiftchat-backend/models"
 	"github.com/kwa0x2/swiftchat-backend/types"
 	"gorm.io/gorm"
@@ -16,7 +17,7 @@ type IFriendRepository interface {
 	GetFriends(userEmail string, isUnFriendStatusAllow bool) ([]*models.Friend, error)
 	GetSpecificFriend(userEmail, userEmail2 string) (*models.Friend, error)
 	GetBlockedUsers(userEmail string) ([]*models.Friend, error)
-	Block(userEmail, userEmail2 string) (string, error)
+	Block(userEmail, userEmail2 string) error
 	IsBlocked(userMail, otherUserMail string) (bool, error)
 }
 
@@ -38,6 +39,7 @@ func (r *friendRepository) Create(tx *gorm.DB, friend *models.Friend) error {
 	}
 
 	if err := db.Create(&friend).Error; err != nil {
+		sentry.CaptureException(err)
 		return err
 	}
 	return nil
@@ -55,6 +57,7 @@ func (r *friendRepository) Update(tx *gorm.DB, whereFriend *models.Friend, updat
 	result := db.Model(&models.Friend{}).Unscoped().Where(whereFriend).Updates(updates)
 
 	if result.Error != nil {
+		sentry.CaptureException(result.Error)
 		return result.Error // Return any error that occurs during the update
 	}
 
@@ -82,6 +85,7 @@ func (r *friendRepository) UpdateFriendStatusByMail(tx *gorm.DB, userEmail, user
 		})
 
 	if result.Error != nil {
+		sentry.CaptureException(result.Error)
 		return result.Error // Return any error that occurs during the update
 	}
 
@@ -104,6 +108,7 @@ func (r *friendRepository) Delete(UserEmail, UserEmail2 string) error {
 			UserEmail).
 		Updates(&models.Friend{FriendStatus: types.UnFriend}).
 		Delete(&models.Friend{}).Error; err != nil {
+		sentry.CaptureException(err)
 		return err
 	}
 	return nil
@@ -129,6 +134,8 @@ func (r *friendRepository) GetFriends(userEmail string, isUnFriendStatusAllow bo
 	if err := query.Preload("User").
 		Select("CASE WHEN user_email = ? THEN user_email2 ELSE user_email END as user_email", userEmail).
 		Find(&friends).Error; err != nil {
+		sentry.CaptureException(err)
+
 		return nil, err
 	}
 
@@ -149,6 +156,7 @@ func (r *friendRepository) GetSpecificFriend(userEmail, userEmail2 string) (*mod
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
+		sentry.CaptureException(err)
 		return nil, err
 	}
 
@@ -167,6 +175,8 @@ func (r *friendRepository) GetBlockedUsers(userEmail string) ([]*models.Friend, 
 		Where("user_email = ? AND friend_status = ?", userEmail, types.Blocked).
 		Or("user_email2 = ? AND friend_status = ?", userEmail, types.Blocked).
 		Find(&friends).Error; err != nil {
+		sentry.CaptureException(err)
+
 		return nil, err
 	}
 
@@ -176,18 +186,19 @@ func (r *friendRepository) GetBlockedUsers(userEmail string) ([]*models.Friend, 
 // endregion
 
 // region "Block" updates the status of a friendship to blocked
-func (r *friendRepository) Block(userEmail, userEmail2 string) (string, error) {
+func (r *friendRepository) Block(userEmail, userEmail2 string) error {
 	// Check if the friendship exists
 	if err := r.DB.
 		Where("(user_email = ? AND user_email2 = ?) OR (user_email = ? AND user_email2 = ?)", userEmail, userEmail2, userEmail2, userEmail).
 		Updates(&models.Friend{FriendStatus: types.Blocked}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", fmt.Errorf("friendship not found")
+			return fmt.Errorf("friendship not found")
 		}
-		return "", err
+		sentry.CaptureException(err)
+		return err
 	}
 
-	return "", nil
+	return nil
 }
 
 // endregion
@@ -201,6 +212,7 @@ func (r *friendRepository) IsBlocked(userEmail, userEmail2 string) (bool, error)
 			userEmail, userEmail, userEmail2, userEmail2).
 		Where("friend_status = ?", types.Blocked).
 		Count(&count).Error; err != nil {
+		sentry.CaptureException(err)
 		return false, err
 	}
 

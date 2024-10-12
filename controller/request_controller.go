@@ -45,6 +45,7 @@ func (ctrl *requestController) GetRequests(ctx *gin.Context) {
 	// Get user session information.
 	userSessionInfo, err := utils.GetUserSessionInfo(ctx)
 	if err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", err.Error()))
 		return
 	}
@@ -52,6 +53,7 @@ func (ctrl *requestController) GetRequests(ctx *gin.Context) {
 	// Retrieve requests for the user.
 	data, GetReqErr := ctrl.RequestService.GetRequests(userSessionInfo.Email)
 	if GetReqErr != nil {
+		utils.HandleErrorWithSentry(ctx, GetReqErr, map[string]interface{}{"email": userSessionInfo.Email})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error retrieving incoming requests"))
 		return
 	}
@@ -79,6 +81,7 @@ func (ctrl *requestController) Patch(ctx *gin.Context) {
 
 	// Bind JSON request body to ActionBody struct.
 	if err := ctx.BindJSON(&requestBody); err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
@@ -86,6 +89,7 @@ func (ctrl *requestController) Patch(ctx *gin.Context) {
 	// Get user session information.
 	userSessionInfo, err := utils.GetUserSessionInfo(ctx)
 	if err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", err.Error()))
 		return
 	}
@@ -93,6 +97,7 @@ func (ctrl *requestController) Patch(ctx *gin.Context) {
 	// Update the friendship request status.
 	data, UpdateErr := ctrl.RequestService.UpdateFriendshipRequest(userSessionInfo.Email, requestBody.Email, requestBody.Status)
 	if UpdateErr != nil {
+		utils.HandleErrorWithSentry(ctx, UpdateErr, map[string]interface{}{"email": userSessionInfo.Email})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Error updating friendship request"))
 		return
 	}
@@ -110,6 +115,7 @@ func (ctrl *requestController) SendFriend(ctx *gin.Context) {
 
 	// Bind JSON request body to ActionBody struct.
 	if err := ctx.BindJSON(&actionBody); err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("JSON Bind Error", err.Error()))
 		return
 	}
@@ -117,6 +123,7 @@ func (ctrl *requestController) SendFriend(ctx *gin.Context) {
 	// Get user session information.
 	userSessionInfo, err := utils.GetUserSessionInfo(ctx)
 	if err != nil {
+		utils.HandleErrorWithSentry(ctx, err, nil)
 		ctx.JSON(http.StatusBadRequest, utils.NewErrorResponse("Session Error", err.Error()))
 		return
 	}
@@ -133,6 +140,7 @@ func (ctrl *requestController) SendFriend(ctx *gin.Context) {
 	var pgErr *pgconn.PgError
 	existingFriend, GetSpecificFriendErr := ctrl.FriendService.GetSpecificFriend(requestObj.SenderEmail, requestObj.ReceiverEmail)
 	if GetSpecificFriendErr != nil && !errors.Is(GetSpecificFriendErr, gorm.ErrRecordNotFound) {
+		utils.HandleErrorWithSentry(ctx, GetSpecificFriendErr, map[string]interface{}{"email": userSessionInfo.Email})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Unable to retrieve friend status"))
 		return
 	}
@@ -157,6 +165,7 @@ func (ctrl *requestController) SendFriend(ctx *gin.Context) {
 				ctx.JSON(http.StatusConflict, utils.NewErrorResponse("Already Sent", "Duplicate friend request"))
 				return
 			}
+			utils.HandleErrorWithSentry(ctx, createErr, map[string]interface{}{"email": requestObj.ReceiverEmail})
 			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to insert friend request"))
 			return
 		}
@@ -164,6 +173,7 @@ func (ctrl *requestController) SendFriend(ctx *gin.Context) {
 		// Send email notification about the friend request.
 		_, SendEmailErr := ctrl.ResendService.SendEmail(requestObj.ReceiverEmail, "You have received a new friend request from the SwiftChat app!", "friend_request")
 		if SendEmailErr != nil {
+			utils.HandleErrorWithSentry(ctx, SendEmailErr, map[string]interface{}{"email": requestObj.ReceiverEmail})
 			ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to send email"))
 			return
 		}
@@ -179,6 +189,7 @@ func (ctrl *requestController) SendFriend(ctx *gin.Context) {
 			ctx.JSON(http.StatusConflict, utils.NewErrorResponse("Already Sent", "Duplicate friend request"))
 			return
 		}
+		utils.HandleErrorWithSentry(ctx, dataErr, map[string]interface{}{"email": requestObj.ReceiverEmail})
 		ctx.JSON(http.StatusInternalServerError, utils.NewErrorResponse("Internal Server Error", "Failed to insert friend request"))
 		return
 	}

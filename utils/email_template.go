@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"github.com/getsentry/sentry-go"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ func LoadTemplate(templateName string, email string) (string, error) {
 	// Get the current working directory
 	_, err := os.Getwd()
 	if err != nil {
+		sentry.CaptureException(err)
 		return "", fmt.Errorf("error getting current directory: %w", err) // Return an error if fetching the current directory fails
 	}
 
@@ -22,6 +24,7 @@ func LoadTemplate(templateName string, email string) (string, error) {
 	// Read the content of the HTML template file
 	htmlContent, readErr := ioutil.ReadFile(templatePath)
 	if readErr != nil {
+		sentry.CaptureException(readErr)
 		return "", fmt.Errorf("error reading HTML file: %w", readErr) // Return an error if reading the file fails
 	}
 

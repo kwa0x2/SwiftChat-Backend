@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/getsentry/sentry-go"
 	"github.com/kwa0x2/swiftchat-backend/models"
 	"gorm.io/gorm"
 )
@@ -44,6 +45,7 @@ func (r *userRepository) IsFieldExists(whereUser *models.User) bool {
 // region "Create" adds a new user to the database and returns the created user.
 func (r *userRepository) Create(user *models.User) (*models.User, error) {
 	if err := r.DB.Create(&user).Error; err != nil {
+		sentry.CaptureException(err)
 		return nil, err
 	}
 	return user, nil
@@ -55,6 +57,7 @@ func (r *userRepository) Create(user *models.User) (*models.User, error) {
 func (r *userRepository) GetUser(whereUser *models.User) (*models.User, error) {
 	var user *models.User
 	if err := r.DB.Where(whereUser).First(&user).Error; err != nil {
+		sentry.CaptureException(err)
 		return nil, err
 	}
 	return user, nil
@@ -64,7 +67,11 @@ func (r *userRepository) GetUser(whereUser *models.User) (*models.User, error) {
 
 // region "Update" modifies the fields of a user in the database based on specified conditions.
 func (r *userRepository) Update(whereUser *models.User, updates *models.User) error {
-	return r.DB.Model(&models.User{}).Where(whereUser).Updates(updates).Error
+	if err := r.DB.Model(&models.User{}).Where(whereUser).Updates(updates).Error; err != nil {
+		sentry.CaptureException(err)
+		return err
+	}
+	return nil
 }
 
 // endregion

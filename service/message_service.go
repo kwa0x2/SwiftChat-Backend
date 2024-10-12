@@ -110,7 +110,7 @@ func (s *messageService) UpdateMessageById(messageId uuid.UUID, message string) 
 		MessageContent: message, // Set the new message content.
 	}
 
-	return s.MessageRepository.Update(whereMessage, updateMessage, false, false)
+	return s.MessageRepository.Update(whereMessage, updateMessage, false, true)
 }
 
 // endregion
