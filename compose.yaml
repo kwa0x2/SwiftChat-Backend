@@ -1,55 +1,55 @@
-version: "3.8"
+version: "3.8"  # Specifies the version of the Docker Compose file format.
 
-services:
-  database:
-    image: postgres:latest
-    restart: always
-    container_name: swiftchat_postgres
-    environment:
-      POSTGRES_DB: ${POSTGRE_DB}
-      POSTGRES_USER: ${POSTGRE_USER}
-      POSTGRES_PASSWORD: ${POSTGRE_PASSWORD}
+services:  # Defines the services (containers) to be created.
+  database:  # Service name for the PostgreSQL database.
+    image: postgres:latest  # Uses the latest PostgreSQL image from Docker Hub.
+    restart: always  # Automatically restarts the container if it stops.
+    container_name: swiftchat_postgres  # Sets a specific name for the container.
+    environment:  # Environment variables for PostgreSQL configuration.
+      POSTGRES_DB: ${POSTGRE_DB}  # Database name from the .env file.
+      POSTGRES_USER: ${POSTGRE_USER}  # User for the database from the .env file.
+      POSTGRES_PASSWORD: ${POSTGRE_PASSWORD}  # Password for the database from the .env file.
     ports:
-      - "5437:5432"
-    volumes:
-      - db:/var/lib/postgresql/data
-      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - "5437:5432"  # Maps port 5437 on the host to port 5432 in the container.
+    volumes:  # Mounts volumes for data persistence.
+      - db:/var/lib/postgresql/data  # Persistent storage for the database data.
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql  # Initializes the database with a script.
     networks:
-      - swiftchat_network
+      - swiftchat_network  # Connects the container to a specified network.
 
-  redis:
-    image: redis:latest
-    restart: always
-    container_name: swiftchat_redis
+  redis:  # Service name for the Redis cache.
+    image: redis:latest  # Uses the latest Redis image from Docker Hub.
+    restart: always  # Automatically restarts the container if it stops.
+    container_name: swiftchat_redis  # Sets a specific name for the container.
     ports:
-      - "6379:6379"
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+      - "6379:6379"  # Maps port 6379 on the host to port 6379 in the container.
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]  # Starts Redis with password protection.
     volumes:
-      - redis:/data
+      - redis:/data  # Persistent storage for Redis data.
     networks:
-      - swiftchat_network
+      - swiftchat_network  # Connects the container to a specified network.
 
-  swiftchat_api:
-    build: .
-    container_name: swiftchat_api
+  swiftchat_api:  # Service name for the API.
+    build: .  # Builds the image from the Dockerfile in the current directory.
+    container_name: swiftchat_api  # Sets a specific name for the container.
     ports:
-      - "9000:9000"
-    restart: on-failure
-    depends_on:
-      - database
-      - redis
-    environment:
-      - POSTGRE_HOST=swiftchat_postgres
-      - REDIS_HOST=swiftchat_redis:6379
+      - "9000:9000"  # Maps port 9000 on the host to port 9000 in the container.
+    restart: on-failure  # Restarts the container only if it exits with a non-zero status.
+    depends_on:  # Specifies dependency on other services.
+      - database  # The API waits for the database to be ready.
+      - redis  # The API waits for Redis to be ready.
+    environment:  # Environment variables for the API.
+      - POSTGRE_HOST=swiftchat_postgres  # Host for PostgreSQL (uses container name).
+      - REDIS_HOST=swiftchat_redis:6379  # Host for Redis with port.
     env_file:
-      - .env
+      - .env  # Loads environment variables from the .env file.
     networks:
-      - swiftchat_network
+      - swiftchat_network  # Connects the container to a specified network.
 
-volumes:
-  db:
-  redis:
+volumes:  # Defines named volumes for data persistence.
+  db:  # Volume for PostgreSQL.
+  redis:  # Volume for Redis.
 
-networks:
-  swiftchat_network:
-    driver: bridge
+networks:  # Defines networks for service communication.
+  swiftchat_network:  # Custom bridge network.
+    driver: bridge  # Specifies the network driver.
