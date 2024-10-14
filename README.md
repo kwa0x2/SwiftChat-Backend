@@ -1,1 +1,1 @@
-![systemdesign](https://i.hizliresim.com/nyw38rm.png)
+![diagram](https://i.hizliresim.com/pnlzrcu.png)
