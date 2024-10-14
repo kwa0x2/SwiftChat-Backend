@@ -12,8 +12,6 @@ SwiftChat backend is built with the Go Gin framework. It uses PostgreSQL for dat
 docker-compose up -d --build
 ```
 
-## Installation:
-
-**Diagram:**
+## Diagram:
 
 ![diagram](https://i.hizliresim.com/pnlzrcu.png)
