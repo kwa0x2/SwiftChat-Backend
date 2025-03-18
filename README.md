@@ -14,4 +14,4 @@ docker-compose up -d --build
 
 ## Diagram:
 
-![diagram](https://i.hizliresim.com/pnlzrcu.png)
+![diagram](https://github.com/kwa0x2/SwiftChat-Backend/blob/047f988486216703a9d7a2d95a431949017d6c14/diagram.jpg)
