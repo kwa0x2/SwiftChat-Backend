@@ -19,10 +19,11 @@ func RedisSession() redis.Store {
 
 	// Set options for the session store.
 	store.Options(sessions.Options{
-		MaxAge:   86400, // Session duration in seconds (24 hours).
+		MaxAge:   86400,                        // Session duration in seconds (24 hours).
 		Path:     "/",
-		HttpOnly: true, // HTTP-only flag to prevent client-side scripts from accessing cookies.
-		Secure:   true, // Set to true to ensure cookies are sent only over HTTPS.
+		Domain:   os.Getenv("COOKIE_DOMAIN"),  // Domain for the cookie.
+		HttpOnly: true,                         // HTTP-only flag to prevent client-side scripts from accessing cookies.
+		Secure:   true,                         // Set to true to ensure cookies are sent only over HTTPS.
 	})
 
 	return store // Return the configured Redis store.
