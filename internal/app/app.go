@@ -37,7 +37,7 @@ func NewApp() *App {
 	// Middleware for sessions and CORS
 	router.Use(sessions.Sessions("connect.sid", store)) // Use session management middleware
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{os.Getenv("CORS_URL")},                            // Allow requests from this origin
+		AllowOrigins:     []string{os.Getenv("FRONT_URL")},                            // Allow requests from this origin
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"}, // Allowed HTTP methods
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},          // Allowed headers
 		ExposeHeaders:    []string{"Content-Length"},                                   // Exposed headers to the client

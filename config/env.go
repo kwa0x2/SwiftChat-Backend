@@ -25,7 +25,8 @@ type Config struct {
 	SessionSecretKey    string `mapstructure:"SESSION_SECRET_KEY" validate:"required"`
 	ResendAPIKey        string `mapstructure:"RESEND_API_KEY" validate:"required"`
 	JWTSecretKey        string `mapstructure:"JWT_SECRET_KEY" validate:"required"`
-	CorsURL 		   string `mapstructure:"CORS_URL" validate:"required"`
+	FrontURL 		   string `mapstructure:"FRONT_URL" validate:"required"`
+	CookieDomain        string `mapstructure:"COOKIE_DOMAIN" validate:"required"`
 }
 
 var Env Config

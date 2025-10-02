@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/kwa0x2/swiftchat-backend/models"
+	"os"
 	"sync"
 	"time"
 
@@ -110,7 +111,7 @@ func (ctrl *authController) GoogleCallback(ctx *gin.Context) {
 		session.Save()
 
 		// Redirect the user to the login page since they already exist in the system
-		ctx.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/login")
+		ctx.Redirect(http.StatusTemporaryRedirect, os.Getenv("FRONT_URL")+"/login")
 		return
 	}
 
@@ -132,7 +133,7 @@ func (ctrl *authController) GoogleCallback(ctx *gin.Context) {
 	}
 
 	// Redirect to the create name page and include the JWT token as a query parameter
-	ctx.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/createname?token="+tokenString)
+	ctx.Redirect(http.StatusTemporaryRedirect, os.Getenv("FRONT_URL")+"/createname?token="+tokenString)
 }
 
 // endregion
@@ -162,7 +163,7 @@ func (ctrl *authController) Logout(ctx *gin.Context) {
 	session.Save()                                // Save session changes
 
 	// Clear the cookie for session identification
-	ctx.SetCookie("connect.sid", "", -1, "/", "localhost", true, true)
+	ctx.SetCookie("connect.sid", "", -1, "/", os.Getenv("COOKIE_DOMAIN"), true, true)
 }
 
 // endregion
