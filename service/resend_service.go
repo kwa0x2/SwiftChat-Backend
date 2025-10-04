@@ -37,7 +37,7 @@ func (s *resendService) SendEmail(to, subject, template string) (string, error) 
 
 	// Prepare the parameters for sending the email.
 	params := &resend.SendEmailRequest{
-		From:    "NettaSec Solutions <admin@alperkarakoyun.com>", // Sender's email information.
+		From:    "SwiftChat <no-reply@smartsrt.com>", // Sender's email information.
 		To:      []string{to},                              // Recipient's email address in a slice.
 		Html:    string(htmlContent),                       // HTML content of the email.
 		Subject: subject,                                   // Subject of the email.
